@@ -1,0 +1,268 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "DiffractionGratingMaterial"
+    {
+        asset inputs:GratingLUT
+        float3 inputs:LightDirection = (-0.35, 0.75, 0.55)
+        float inputs:DensityScale = 0.45
+        float inputs:DensityBias = 0.25
+        float inputs:Gain = 1.6
+        float inputs:Opacity = 1.0
+        token outputs:mtlx:surface.connect = </Root/DiffractionGratingMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/DiffractionGratingMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "Up"
+        {
+            uniform token info:id = "ND_constant_vector3"
+            float3 inputs:value = (0, 1, 0)
+            float3 outputs:out
+        }
+
+        def Shader "kDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/Up.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "kUp"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/Up.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/kDot.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "RadialV"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/kUp.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Radial"
+        {
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/DiffractionGratingMaterial/RadialV.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "LightN"
+        {
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/DiffractionGratingMaterial.inputs:LightDirection>
+            float3 outputs:out
+        }
+
+        def Shader "VoP"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/ViewDir.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/Radial.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LoP"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/LightN.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/Radial.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Delta"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/LoP.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/VoP.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DeltaQuarter"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/Delta.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "U01"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/DeltaQuarter.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DiffractionGratingMaterial/U01.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/DiffractionGratingMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "RadScaled"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial.inputs:DensityScale>
+            float outputs:out
+        }
+
+        def Shader "RadBias"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/RadScaled.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial.inputs:DensityBias>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DiffractionGratingMaterial/RadBias.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "GratingImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/DiffractionGratingMaterial.inputs:GratingLUT>
+            float2 inputs:texcoord.connect = </Root/DiffractionGratingMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "HV"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/ViewDir.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/LightN.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HN"
+        {
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/DiffractionGratingMaterial/HV.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "NdotH"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/DiffractionGratingMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/DiffractionGratingMaterial/HN.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NdotHC"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DiffractionGratingMaterial/NdotH.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Spec"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/NdotHC.outputs:out>
+            float inputs:in2 = 18
+            float outputs:out
+        }
+
+        def Shader "SpecW"
+        {
+            uniform token info:id = "ND_mix_float"
+            float inputs:bg = 0.04
+            float inputs:fg = 1
+            float inputs:mix.connect = </Root/DiffractionGratingMaterial/Spec.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Weighted"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/GratingImage.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SpecW.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/Weighted.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/DiffractionGratingMaterial/GainMul.outputs:out>
+            float inputs:opacity.connect = </Root/DiffractionGratingMaterial.inputs:Opacity>
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

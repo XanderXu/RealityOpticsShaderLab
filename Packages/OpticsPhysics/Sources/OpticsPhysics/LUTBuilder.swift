@@ -1,0 +1,131 @@
+import Foundation
+
+/// Builds the two physics lookup textures as RGBA16F byte buffers,
+/// ready to upload through RealityKit's LowLevelTexture.
+public enum LUTBuilder {
+
+    // MARK: - Axis conventions
+
+    /// Film LUT: U axis = cos(view, normal) in [0,1]; V axis = thickness in [0, thicknessMax] nm.
+    public static let filmThicknessMax: Float = 1200
+
+    public static func filmThickness(v: Float) -> Float { v * filmThicknessMax }
+    public static func filmV(thickness: Float) -> Float { thickness / filmThicknessMax }
+
+    /// Grating LUT: U axis = (sinIn - sinOut + 2) / 4; V axis = groove density in [300, 2000] lines/mm.
+    public static let gratingMinLpm: Float = 300
+    public static let gratingMaxLpm: Float = 2000
+
+    public static func gratingLinesPerMm(v: Float) -> Float {
+        gratingMinLpm + v * (gratingMaxLpm - gratingMinLpm)
+    }
+    public static func gratingV(linesPerMm: Float) -> Float {
+        (linesPerMm - gratingMinLpm) / (gratingMaxLpm - gratingMinLpm)
+    }
+
+    // MARK: - Film LUT
+
+    /// RGBA16F texture, row-major from v=0 (bottom) upward.
+    public static func filmLUT(
+        width: Int = 256,
+        height: Int = 256,
+        config: ThinFilmConfig = ThinFilmConfig()
+    ) -> [UInt16] {
+        var out = [UInt16](repeating: 0, count: width * height * 4)
+        var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+        for y in 0..<height {
+            let v = (Float(y) + 0.5) / Float(height)
+            let d = filmThickness(v: v)
+            for x in 0..<width {
+                let u = (Float(x) + 0.5) / Float(width)
+                let cosTheta = u // axis U == cos view angle, clamped inside ThinFilmAngles
+                let a = ThinFilmAngles(cosTheta: cosTheta, config: config)
+                ThinFilm.reflectanceSpectrum(d: d, angles: a, n2: config.n2, into: &samples)
+                let rgb = Spectrum.rgb(samples: samples)
+                let base = (y * width + x) * 4
+                out[base + 0] = floatToHalf(clampForTexture(rgb.x))
+                out[base + 1] = floatToHalf(clampForTexture(rgb.y))
+                out[base + 2] = floatToHalf(clampForTexture(rgb.z))
+                out[base + 3] = 0x3C00 // 1.0
+            }
+        }
+        return out
+    }
+
+    // MARK: - Grating LUT
+
+    /// RGBA16F texture, row-major from v=0 (bottom) upward.
+    public static func gratingLUT(
+        width: Int = 256,
+        height: Int = 128,
+        maxOrder: Int = 2
+    ) -> [UInt16] {
+        var out = [UInt16](repeating: 0, count: width * height * 4)
+        var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+        for y in 0..<height {
+            let v = (Float(y) + 0.5) / Float(height)
+            let lpm = gratingLinesPerMm(v: v)
+            for x in 0..<width {
+                let u = (Float(x) + 0.5) / Float(width)
+                let delta = (u * 4 - 2) // sinIn - sinOut
+                DiffractionGrating.spectrum(
+                    sinIn: max(delta, 0), sinOut: max(-delta, 0),
+                    linesPerMm: lpm, maxOrder: maxOrder, into: &samples
+                )
+                let rgb = Spectrum.rgb(samples: samples)
+                let base = (y * width + x) * 4
+                out[base + 0] = floatToHalf(clampForTexture(rgb.x))
+                out[base + 1] = floatToHalf(clampForTexture(rgb.y))
+                out[base + 2] = floatToHalf(clampForTexture(rgb.z))
+                out[base + 3] = 0x3C00 // 1.0
+            }
+        }
+        return out
+    }
+
+    // MARK: - Helpers
+
+    /// Keep small positive HDR headroom, drop negative lobes from the CMF matrix.
+    @inlinable
+    static func clampForTexture(_ x: Float) -> Float {
+        min(max(x, 0), 4)
+    }
+
+    /// IEEE 754 binary16 conversion (round to nearest even).
+    public static func floatToHalf(_ value: Float) -> UInt16 {
+        var f = value
+        let bits = withUnsafeBytes(of: &f) { $0.load(as: UInt32.self) }
+        let sign = UInt16((bits >> 16) & 0x8000)
+        let exponent = Int((bits >> 23) & 0xFF) - 127 + 15
+        var mantissa = bits & 0x007F_FFFF
+
+        if ((bits >> 23) & 0xFF) == 0xFF {
+            // Inf / NaN
+            return sign | 0x7C00 | (mantissa != 0 ? 1 : 0)
+        }
+        if exponent >= 0x1F {
+            return sign | 0x7C00 // overflow -> inf
+        }
+        if exponent <= 0 {
+            // Subnormal or zero
+            if exponent < -10 { return sign }
+            mantissa |= 0x0080_0000
+            var half: UInt32 = 0
+            let shift = UInt32(14 - exponent)
+            half = mantissa >> shift
+            // round to nearest even
+            let roundBit = (mantissa >> (shift - 1)) & 1
+            let sticky = (mantissa & ((1 << (shift - 1)) - 1)) != 0
+            if roundBit == 1 && (sticky || half & 1 == 1) { half += 1 }
+            return sign | UInt16(half)
+        }
+        var half = UInt32(exponent) << 10 | (mantissa >> 13)
+        let roundBit = (mantissa >> 12) & 1
+        let sticky = (mantissa & 0xFFF) != 0
+        if roundBit == 1 && (sticky || half & 1 == 1) {
+            half += 1
+            if half & 0x7C00 == 0x7C00 { half = UInt32(exponent) << 10 | 0x3FF }
+        }
+        return sign | UInt16(half)
+    }
+}
