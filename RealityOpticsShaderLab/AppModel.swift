@@ -55,6 +55,12 @@ final class AppModel {
     var nacreNoiseAmount: Float = 0.08 { didSet { pushNacreParameters() } }
     var nacreGain: Float = 1.4 { didSet { pushNacreParameters() } }
 
+    // MARK: - Opal parameters
+
+    var opalCellScale: Float = 6 { didSet { pushOpalParameters() } }
+    var opalJitter: Float = 0.5 { didSet { pushOpalParameters() } }
+    var opalGain: Float = 1.5 { didSet { pushOpalParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -63,6 +69,7 @@ final class AppModel {
     private(set) var filmMaterial: ShaderGraphMaterial?
     private(set) var gratingMaterial: ShaderGraphMaterial?
     private(set) var nacreMaterial: ShaderGraphMaterial?
+    private(set) var opalMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
@@ -137,6 +144,18 @@ final class AppModel {
                 SettingSpec(id: "nGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.nacreGain ?? 0 },
                             set: { [weak self] in self?.nacreGain = $0 }),
+            ]
+        case .opal:
+            return [
+                SettingSpec(id: "oCell", label: "Cell scale (Voronoi)", range: 2...16,
+                            get: { [weak self] in self?.opalCellScale ?? 0 },
+                            set: { [weak self] in self?.opalCellScale = $0 }),
+                SettingSpec(id: "oJitter", label: "Domain jitter", range: 0...1,
+                            get: { [weak self] in self?.opalJitter ?? 0 },
+                            set: { [weak self] in self?.opalJitter = $0 }),
+                SettingSpec(id: "oGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.opalGain ?? 0 },
+                            set: { [weak self] in self?.opalGain = $0 }),
             ]
         default:
             return []
@@ -213,6 +232,22 @@ final class AppModel {
             return
         }
 
+        do {
+            // Opal reuses the grating LUT data; its look comes from the
+            // Voronoi jitter applied to the lookup coordinates in-graph.
+            let opal = try await loadLutMaterial(
+                prim: "/Root/OpalMaterial",
+                file: "Materials/OpalMaterial.usda",
+                lutName: "OpalLUT",
+                texture: gratingTexture.resource
+            )
+            self.opalMaterial = opal
+            pushOpalParameters()
+        } catch {
+            statusMessage = "opal err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -278,6 +313,20 @@ final class AppModel {
                 shell.name = keep
                 shell.position = SIMD3(0, -0.02, 0)
                 root.addChild(shell)
+            }
+
+        case .opal:
+            guard let opal = opalMaterial else { return }
+            if let stone = root.findEntity(named: keep) {
+                assign(opal, to: stone)
+            } else {
+                let stone = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [opal]
+                )
+                stone.name = keep
+                stone.position = SIMD3(0, -0.02, 0)
+                root.addChild(stone)
             }
 
         case .grating:
@@ -380,6 +429,15 @@ final class AppModel {
         setParam(&nacre, "NoiseAmount", .float(nacreNoiseAmount))
         setParam(&nacre, "Gain", .float(nacreGain))
         nacreMaterial = nacre
+        materialRevision += 1
+    }
+
+    private func pushOpalParameters() {
+        guard var opal = opalMaterial else { return }
+        setParam(&opal, "CellScale", .float(opalCellScale))
+        setParam(&opal, "Jitter", .float(opalJitter))
+        setParam(&opal, "Gain", .float(opalGain))
+        opalMaterial = opal
         materialRevision += 1
     }
 
