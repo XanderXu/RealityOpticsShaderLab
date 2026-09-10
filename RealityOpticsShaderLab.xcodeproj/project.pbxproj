@@ -117,8 +117,8 @@
 			mainGroup = AA0000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				AA0000000000000000000012 /* XCLocalSwiftPackageReference: OpticsContent */,
-				AA0000000000000000000013 /* XCLocalSwiftPackageReference: OpticsPhysics */,
+				AA0000000000000000000012 /* XCLocalSwiftPackageReference "Packages/OpticsContent" */,
+				AA0000000000000000000013 /* XCLocalSwiftPackageReference "Packages/OpticsPhysics" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA0000000000000000000002 /* Products */;
@@ -354,11 +354,11 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		AA0000000000000000000012 /* OpticsContent */ = {
+		AA0000000000000000000012 /* XCLocalSwiftPackageReference "Packages/OpticsContent" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/OpticsContent;
 		};
-		AA0000000000000000000013 /* OpticsPhysics */ = {
+		AA0000000000000000000013 /* XCLocalSwiftPackageReference "Packages/OpticsPhysics" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/OpticsPhysics;
 		};
@@ -367,13 +367,13 @@
 /* Begin XCSwiftPackageProductDependency section */
 		AA0000000000000000000014 /* OpticsContent */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000012 /* XCLocalSwiftPackageReference "Packages/OpticsContent" */;
 			productName = OpticsContent;
-			package = AA0000000000000000000012 /* OpticsContent */;
 		};
 		AA0000000000000000000015 /* OpticsPhysics */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000013 /* XCLocalSwiftPackageReference "Packages/OpticsPhysics" */;
 			productName = OpticsPhysics;
-			package = AA0000000000000000000013 /* OpticsPhysics */;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

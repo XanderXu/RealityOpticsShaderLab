@@ -33,9 +33,16 @@ struct OpticsSceneView: View {
                 if let cd = root.findEntity(named: "CompactDisc") {
                     cd.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
                 }
+                // Placeholder objects turn gently so their silhouette reads as 3D.
+                if let ph = root.findEntity(named: "Placeholder") {
+                    ph.orientation = simd_quatf(angle: spin * 0.15, axis: SIMD3(0, 1, 0))
+                }
             }
         }
         .onChange(of: model.materialRevision) { _, _ in
+            model.syncSceneObjects()
+        }
+        .onChange(of: model.selectedEffect) { _, _ in
             model.syncSceneObjects()
         }
     }

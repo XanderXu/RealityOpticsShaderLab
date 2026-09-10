@@ -3,9 +3,21 @@ import RealityKit
 import OpticsPhysics
 import OpticsContent
 
+/// One slider in the per-effect settings panel, bound to AppModel state
+/// through getter/setter closures (keeps the UI generic and data-driven).
+struct SettingSpec: Identifiable {
+    let id: String
+    let label: String
+    let range: ClosedRange<Float>
+    let get: () -> Float
+    let set: (Float) -> Void
+}
+
 @MainActor
 @Observable
 final class AppModel {
+
+    var selectedEffect: OpticsEffect = .thinFilm
 
     // MARK: - Film (soap bubble) parameters
 
@@ -49,52 +61,53 @@ final class AppModel {
 
     private var rebuildTask: Task<Void, Never>?
 
-    /// Creates each demo object once its material exists and re-pushes the
-    /// (value-type) materials into the entities' ModelComponents. Called from
-    /// the scene's make closure via an unstructured Task (so observable reads
-    /// here never re-trigger the make closure) and on every materialRevision
-    /// change so slider edits reach the rendered surface.
-    func syncSceneObjects() {
-        guard let root = sceneRoot else { return }
-
-        if let film = filmMaterial {
-            if let bubble = root.findEntity(named: "Bubble") {
-                assign(film, to: bubble)
-            } else {
-                let bubble = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [film]
-                )
-                bubble.name = "Bubble"
-                bubble.position = SIMD3(-0.22, -0.02, 0)
-                root.addChild(bubble)
-            }
-        }
-
-        if let grating = gratingMaterial {
-            if let cd = root.findEntity(named: "CompactDisc") {
-                assign(grating, to: cd)
-            } else if let disc = try? DiscMesh.make(
-                innerRadius: 0.035,
-                outerRadius: 0.22,
-                slope: 0.20
-            ) {
-                let cd = ModelEntity(mesh: disc, materials: [grating])
-                cd.name = "CompactDisc"
-                cd.position = SIMD3(0.22, -0.06, 0)
-                root.addChild(cd)
-            }
-        }
-    }
-
-    private func assign(_ material: ShaderGraphMaterial, to entity: Entity) {
-        guard var component = entity.components[ModelComponent.self] else { return }
-        component.materials = [material]
-        entity.components[ModelComponent.self] = component
-    }
-
     func report(error: String) {
         statusMessage = error
+    }
+
+    // MARK: - Per-effect settings
+
+    func settingsFor(_ effect: OpticsEffect) -> [SettingSpec] {
+        switch effect {
+        case .thinFilm:
+            return [
+                SettingSpec(id: "tScale", label: "Thickness scale", range: 0...1.5,
+                            get: { [weak self] in self?.thicknessScale ?? 0 },
+                            set: { [weak self] in self?.thicknessScale = $0 }),
+                SettingSpec(id: "tBias", label: "Thickness bias", range: 0...0.8,
+                            get: { [weak self] in self?.thicknessBias ?? 0 },
+                            set: { [weak self] in self?.thicknessBias = $0 }),
+                SettingSpec(id: "noise", label: "Noise amount", range: 0...0.4,
+                            get: { [weak self] in self?.noiseAmount ?? 0 },
+                            set: { [weak self] in self?.noiseAmount = $0 }),
+                SettingSpec(id: "gain", label: "Gain", range: 0.5...4,
+                            get: { [weak self] in self?.filmGain ?? 0 },
+                            set: { [weak self] in self?.filmGain = $0 }),
+                SettingSpec(id: "opacity", label: "Opacity", range: 0.3...1,
+                            get: { [weak self] in self?.filmOpacity ?? 0 },
+                            set: { [weak self] in self?.filmOpacity = $0 }),
+                SettingSpec(id: "ior", label: "Film IOR (rebuilds LUT)", range: 1.2...1.45,
+                            get: { [weak self] in self?.soapIOR ?? 0 },
+                            set: { [weak self] in self?.soapIOR = $0 }),
+            ]
+        case .grating:
+            return [
+                SettingSpec(id: "dScale", label: "Density scale", range: 0.1...1,
+                            get: { [weak self] in self?.densityScale ?? 0 },
+                            set: { [weak self] in self?.densityScale = $0 }),
+                SettingSpec(id: "dBias", label: "Density bias", range: 0...0.6,
+                            get: { [weak self] in self?.densityBias ?? 0 },
+                            set: { [weak self] in self?.densityBias = $0 }),
+                SettingSpec(id: "gGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.gratingGain ?? 0 },
+                            set: { [weak self] in self?.gratingGain = $0 }),
+                SettingSpec(id: "az", label: "Light azimuth", range: 0...360,
+                            get: { [weak self] in self?.lightAzimuthDeg ?? 0 },
+                            set: { [weak self] in self?.lightAzimuthDeg = $0 }),
+            ]
+        default:
+            return []
+        }
     }
 
     // MARK: - Build
@@ -123,8 +136,7 @@ final class AppModel {
                 in: opticsContentBundle
             )
             try film.setParameter(name: "FilmLUT", value: .textureResource(filmTexture.resource))
-            // Thin shell / disc: render both faces so the bubble interior shows
-            // and the leaning disc never gets back-face culled mid-rotation.
+            // Thin shell: render both faces so the bubble interior shows.
             film.faceCulling = .none
             self.filmMaterial = film
             pushFilmParameters()
@@ -149,6 +161,96 @@ final class AppModel {
         }
 
         statusMessage = "Ready"
+    }
+
+    // MARK: - Scene object management
+
+    private func entityName(for effect: OpticsEffect) -> String {
+        switch effect {
+        case .thinFilm: return "Bubble"
+        case .grating: return "CompactDisc"
+        default: return "Placeholder"
+        }
+    }
+
+    /// Shows exactly one object: the effect's shader-carrying mesh, or a
+    /// placeholder for effects not yet implemented. Called from the scene's
+    /// make closure (via an unstructured Task, so observable reads here never
+    /// re-trigger the make closure) and on materialRevision/effect changes.
+    func syncSceneObjects() {
+        guard let root = sceneRoot else { return }
+        let effect = selectedEffect
+        let keep = entityName(for: effect)
+
+        // Remove entities that belong to a different effect.
+        for name in ["Bubble", "CompactDisc", "Placeholder"] where name != keep {
+            root.findEntity(named: name)?.removeFromParent()
+        }
+
+        switch effect {
+        case .thinFilm:
+            guard let film = filmMaterial else { return }
+            if let bubble = root.findEntity(named: keep) {
+                assign(film, to: bubble)
+            } else {
+                let bubble = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [film]
+                )
+                bubble.name = keep
+                bubble.position = SIMD3(0, -0.02, 0)
+                root.addChild(bubble)
+            }
+
+        case .grating:
+            guard let grating = gratingMaterial else { return }
+            if let cd = root.findEntity(named: keep) {
+                assign(grating, to: cd)
+            } else if let disc = try? DiscMesh.make(
+                innerRadius: 0.035,
+                outerRadius: 0.22,
+                slope: 0.20
+            ) {
+                let cd = ModelEntity(mesh: disc, materials: [grating])
+                cd.name = keep
+                cd.position = SIMD3(0, -0.06, 0)
+                root.addChild(cd)
+            }
+
+        default:
+            guard root.findEntity(named: keep) == nil else { return }
+            let placeholder: ModelEntity
+            switch effect {
+            case .birefringence:
+                // Stretched plastic ruler silhouette
+                placeholder = ModelEntity(
+                    mesh: .generateBox(width: 0.36, height: 0.02, depth: 0.07),
+                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
+                )
+                placeholder.position = SIMD3(0, -0.03, 0)
+            case .morpho, .feather:
+                // Wing / feather vane silhouette
+                placeholder = ModelEntity(
+                    mesh: .generatePlane(width: 0.34, height: 0.2),
+                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
+                )
+                placeholder.position = SIMD3(0, -0.02, -0.02)
+            default:
+                placeholder = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
+                )
+                placeholder.position = SIMD3(0, -0.02, 0)
+            }
+            placeholder.name = keep
+            root.addChild(placeholder)
+        }
+    }
+
+    private func assign(_ material: ShaderGraphMaterial, to entity: Entity) {
+        guard var component = entity.components[ModelComponent.self] else { return }
+        component.materials = [material]
+        entity.components[ModelComponent.self] = component
     }
 
     // MARK: - Hot updates
