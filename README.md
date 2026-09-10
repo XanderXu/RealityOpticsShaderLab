@@ -1,11 +1,20 @@
-# RealityOpticsShaderLab — 用 RealityKit ShaderGraph + LowLevelTexture 实现波动光学效果
+# RealityOpticsShaderLab — 用 RealityKit ShaderGraph + LowLevelTexture 实现波动光学效果库
 
-一个 visionOS 演示 App，在 Apple 平台上以"物理优先"的方式实时呈现两种波动光学现象：
+一个 visionOS 演示 App，在 Apple 平台上以"物理优先"的方式实时呈现 **9 种波动光学与生物结构色**效果，通过 UI 选择器切换，每个效果带独立参数面板。
 
-| 物体 | 效果 | 物理机制 |
-|---|---|---|
-| 左：肥皂泡球 | 随厚度与视角变化的彩虹薄膜色 | 薄膜干涉（Airy 级数 + Fresnel 振幅） |
-| 右：CD 圆盘 | 高光附近的径向彩虹条纹 | 反射式衍射光栅方程 |
+## 效果目录（全部已实现）
+
+| 效果 | 物理机制 | 实现 | 几何 |
+|---|---|---|---|
+| 薄膜干涉·肥皂泡 | Fresnel + Airy 级数光谱积分 | 厚度×视角 LUT | 球 |
+| 衍射光栅·CD | sinθi−sinθo = mλ/d 多阶合成 | sin差×密度 LUT | 微锥盘 |
+| 珍珠母/珠光 | 三层板片膜平均 + σd=45 模糊 + 降饱和 | nacreLUT | 球 |
+| 欧泊 play-of-color | Voronoi 晶域各取等效光栅方向 | worleynoise 扰动 LUT 坐标 | 球 |
+| 双折射/光弹性 | 正交偏振片 T=sin²(δ·λref/2λ) | 相位差 LUT | 塑料尺盒 |
+| 激光散斑 | 视线偏移 + cellnoise 哈希 + 阈值 | 纯图内（无 LUT） | 球 |
+| 闪蝶翅膀 | 几丁质 216nm 一阶蓝峰 + 宽角稳定 | chitin filmLUT + abs(NdotV) | 翅面 |
+| 吉丁虫鞘翅 | 绿带薄膜 + 视角彩虹条带混合 | 双 LUT mix | 椭球 |
+| 蜂鸟/孔雀羽 | 薄膜蓝绿带 + 羽枝条纹 + glitter | filmLUT + sin 条纹 + cellnoise 星点 | 羽面 |
 
 ## 架构
 
@@ -78,6 +87,10 @@ Xcode 26.6 / visionOS 26.5 模拟器验证通过；部署目标 visionOS 2.0。
 
 ## 手写 .usda 材质图的踩坑记录
 
+0. **RealityKit 纹理采样 V 轴与 blit 写入行序相反**：MaterialX 自下而上采样，
+   CPU 字节自上而下写入，所有 LUT 的 V 轴实际读的是镜像数据（彩虹类效果看不出错，
+   定向效果如闪蝶蓝带直接错位）。在 `LUTTexture.upload()` 统一翻转行序。
+0. **RealityView 的 make 闭包里不要读 @Observable 状态**：SwiftUI 会在状态变化时重跑
 0. **RealityView 的 make 闭包里不要读 @Observable 状态**：SwiftUI 会在状态变化时重跑
    make，导致场景被重建/订阅堆积。本项目 make 只建空根节点，物体创建与材质同步由
    `AppModel.materialRevision` 驱动（`syncSceneObjects()`），make 内经非结构化 Task

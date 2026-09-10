@@ -87,6 +87,13 @@ final class AppModel {
     var beetleRainbowMix: Float = 0.35 { didSet { pushBeetleParameters() } }
     var beetleGain: Float = 1.8 { didSet { pushBeetleParameters() } }
 
+    // MARK: - Feather parameters
+
+    var featherThicknessBias: Float = 0.3 { didSet { pushFeatherParameters() } }
+    var featherStripeCount: Float = 24 { didSet { pushFeatherParameters() } }
+    var featherGlitterScale: Float = 300 { didSet { pushFeatherParameters() } }
+    var featherGain: Float = 1.5 { didSet { pushFeatherParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -100,6 +107,7 @@ final class AppModel {
     private(set) var speckleMaterial: ShaderGraphMaterial?
     private(set) var morphoMaterial: ShaderGraphMaterial?
     private(set) var beetleMaterial: ShaderGraphMaterial?
+    private(set) var featherMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
@@ -239,6 +247,21 @@ final class AppModel {
                 SettingSpec(id: "kGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.beetleGain ?? 0 },
                             set: { [weak self] in self?.beetleGain = $0 }),
+            ]
+        case .feather:
+            return [
+                SettingSpec(id: "fBias", label: "Thickness band", range: 0.2...0.42,
+                            get: { [weak self] in self?.featherThicknessBias ?? 0 },
+                            set: { [weak self] in self?.featherThicknessBias = $0 }),
+                SettingSpec(id: "fStripe", label: "Barbule stripes", range: 8...60,
+                            get: { [weak self] in self?.featherStripeCount ?? 0 },
+                            set: { [weak self] in self?.featherStripeCount = $0 }),
+                SettingSpec(id: "fGlitter", label: "Glitter density", range: 100...600,
+                            get: { [weak self] in self?.featherGlitterScale ?? 0 },
+                            set: { [weak self] in self?.featherGlitterScale = $0 }),
+                SettingSpec(id: "fGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.featherGain ?? 0 },
+                            set: { [weak self] in self?.featherGain = $0 }),
             ]
         default:
             return []
@@ -404,6 +427,23 @@ final class AppModel {
             return
         }
 
+        do {
+            // Feather: chitin film (blue-green band) + barbule stripes +
+            // static glitter sparkles, all composed in-graph.
+            var feather = try await ShaderGraphMaterial(
+                named: "/Root/FeatherMaterial",
+                from: "Materials/FeatherMaterial.usda",
+                in: opticsContentBundle
+            )
+            try feather.setParameter(name: "FilmLUT", value: .textureResource(morphoTexture.resource))
+            feather.faceCulling = .none
+            self.featherMaterial = feather
+            pushFeatherParameters()
+        } catch {
+            statusMessage = "feather err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -429,6 +469,7 @@ final class AppModel {
         case .speckle: return "SpeckleSphere"
         case .morpho: return "MorphoWing"
         case .beetle: return "BeetleShell"
+        case .feather: return "FeatherVane"
         default: return "Placeholder"
         }
     }
@@ -445,7 +486,7 @@ final class AppModel {
         // Remove entities that belong to a different effect.
         let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
                           "BirefrRuler", "SpeckleSphere", "MorphoWing", "BeetleShell",
-                          "Placeholder"]
+                          "FeatherVane", "Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
@@ -549,6 +590,20 @@ final class AppModel {
                 shell.name = keep
                 shell.position = SIMD3(0, -0.02, 0)
                 root.addChild(shell)
+            }
+
+        case .feather:
+            guard let feather = featherMaterial else { return }
+            if let vane = root.findEntity(named: keep) {
+                assign(feather, to: vane)
+            } else {
+                let vane = ModelEntity(
+                    mesh: .generatePlane(width: 0.34, height: 0.2),
+                    materials: [feather]
+                )
+                vane.name = keep
+                vane.position = SIMD3(0, -0.02, -0.02)
+                root.addChild(vane)
             }
 
         case .grating:
@@ -700,6 +755,16 @@ final class AppModel {
         setParam(&beetle, "RainbowMix", .float(beetleRainbowMix))
         setParam(&beetle, "Gain", .float(beetleGain))
         beetleMaterial = beetle
+        materialRevision += 1
+    }
+
+    private func pushFeatherParameters() {
+        guard var feather = featherMaterial else { return }
+        setParam(&feather, "ThicknessBias", .float(featherThicknessBias))
+        setParam(&feather, "StripeCount", .float(featherStripeCount))
+        setParam(&feather, "GlitterScale", .float(featherGlitterScale))
+        setParam(&feather, "Gain", .float(featherGain))
+        featherMaterial = feather
         materialRevision += 1
     }
 

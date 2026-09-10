@@ -1,0 +1,239 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "FeatherMaterial"
+    {
+        asset inputs:FilmLUT
+        float inputs:ThicknessBias = 0.3
+        float inputs:StripeCount = 24
+        float inputs:GlitterScale = 300
+        float inputs:Gain = 1.5
+        token outputs:mtlx:surface.connect = </Root/FeatherMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/FeatherMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/FeatherMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/FeatherMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/FeatherMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ClampNV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/FeatherMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "FilmUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/FeatherMaterial/ClampNV.outputs:out>
+            float inputs:in2.connect = </Root/FeatherMaterial.inputs:ThicknessBias>
+            float2 outputs:out
+        }
+
+        def Shader "FilmImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/FeatherMaterial.inputs:FilmLUT>
+            float2 inputs:texcoord.connect = </Root/FeatherMaterial/FilmUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/FeatherMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "StripePhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/FeatherMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/FeatherMaterial.inputs:StripeCount>
+            float outputs:out
+        }
+
+        def Shader "StripePhase2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/FeatherMaterial/StripePhase.outputs:out>
+            float inputs:in2 = 6.2832
+            float outputs:out
+        }
+
+        def Shader "StripeSin"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/FeatherMaterial/StripePhase2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "StripeAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/FeatherMaterial/StripeSin.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "StripeSharp"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/FeatherMaterial/StripeAbs.outputs:out>
+            float inputs:in2 = 3
+            float outputs:out
+        }
+
+        def Shader "StripeHalf"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/FeatherMaterial/StripeSharp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "StripeW"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/FeatherMaterial/StripeHalf.outputs:out>
+            float inputs:in2 = 0.7
+            float outputs:out
+        }
+
+        def Shader "Base"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/FeatherMaterial/FilmImage.outputs:out>
+            float inputs:in2.connect = </Root/FeatherMaterial/StripeW.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GlitterUV"
+        {
+            uniform token info:id = "ND_multiply_vector2FA"
+            float2 inputs:in1.connect = </Root/FeatherMaterial/Texcoord.outputs:out>
+            float inputs:in2.connect = </Root/FeatherMaterial.inputs:GlitterScale>
+            float2 outputs:out
+        }
+
+        def Shader "GrainRand"
+        {
+            uniform token info:id = "ND_cellnoise2d_float"
+            float2 inputs:texcoord.connect = </Root/FeatherMaterial/GlitterUV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlitterHi"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 0.96
+            float inputs:in2 = 0.03
+            float outputs:out
+        }
+
+        def Shader "Sparkle"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/FeatherMaterial/GrainRand.outputs:out>
+            float inputs:low = 0.96
+            float inputs:high.connect = </Root/FeatherMaterial/GlitterHi.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SparkleColor"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (1, 1, 1)
+            color3f outputs:out
+        }
+
+        def Shader "SparkleMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/FeatherMaterial/SparkleColor.outputs:out>
+            float inputs:in2.connect = </Root/FeatherMaterial/Sparkle.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Final"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/FeatherMaterial/Base.outputs:out>
+            color3f inputs:in2.connect = </Root/FeatherMaterial/SparkleMul.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/FeatherMaterial/Final.outputs:out>
+            float inputs:in2.connect = </Root/FeatherMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/FeatherMaterial/GainMul.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}
