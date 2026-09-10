@@ -82,4 +82,8 @@ enum LUTFactory {
     nonisolated static func makeGratingLUT() -> [UInt16] {
         return LUTBuilder.gratingLUT(width: 256, height: 128, maxOrder: 2)
     }
+
+    nonisolated static func makeNacreLUT() -> [UInt16] {
+        return LUTBuilder.nacreLUT(width: 256, height: 256)
+    }
 }

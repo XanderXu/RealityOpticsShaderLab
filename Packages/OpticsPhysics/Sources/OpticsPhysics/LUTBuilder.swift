@@ -54,6 +54,47 @@ public enum LUTBuilder {
 
     // MARK: - Grating LUT
 
+    /// Mother-of-pearl: averages three commensurate platelet film layers
+    /// (golden-ratio thickness offsets) with a large thickness variance
+    /// (platelet orientation spread), then desaturates toward soft pastels.
+    public static func nacreLUT(
+        width: Int = 256,
+        height: Int = 256,
+        config: ThinFilmConfig = ThinFilmConfig(n2: 1.55, sigmaD: 45)
+    ) -> [UInt16] {
+        var out = [UInt16](repeating: 0, count: width * height * 4)
+        var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+        var layer = [Float](repeating: 0, count: Spectrum.sampleCount)
+        for y in 0..<height {
+            let v = (Float(y) + 0.5) / Float(height)
+            let d = filmThickness(v: v)
+            for x in 0..<width {
+                let u = (Float(x) + 0.5) / Float(width)
+                let angles = ThinFilmAngles(cosTheta: u, config: config)
+                var acc = SIMD3<Float>(0, 0, 0)
+                for (i, scale) in [Float(1.0), 1.618, 0.618].enumerated() {
+                    let dd = max(d * scale + Float(i) * 80, 0)
+                    ThinFilm.reflectanceSpectrum(d: dd, angles: angles, n2: config.n2, into: &layer)
+                    acc += Spectrum.rgb(samples: layer) / 3.0
+                }
+                let rgb = desaturate(acc, amount: 0.45)
+                let base = (y * width + x) * 4
+                out[base + 0] = floatToHalf(clampForTexture(rgb.x))
+                out[base + 1] = floatToHalf(clampForTexture(rgb.y))
+                out[base + 2] = floatToHalf(clampForTexture(rgb.z))
+                out[base + 3] = 0x3C00
+            }
+        }
+        return out
+    }
+
+    /// Linear-light luma mix toward gray.
+    static func desaturate(_ c: SIMD3<Float>, amount: Float) -> SIMD3<Float> {
+        let luma = c.x * 0.2126 + c.y * 0.7152 + c.z * 0.0722
+        let gray = SIMD3<Float>(repeating: luma)
+        return c * (1 - amount) + gray * amount
+    }
+
     /// RGBA16F texture, row-major from v=0 (bottom) upward.
     public static func gratingLUT(
         width: Int = 256,

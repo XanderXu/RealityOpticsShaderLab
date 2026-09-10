@@ -19,6 +19,15 @@ final class AppModel {
 
     var selectedEffect: OpticsEffect = .thinFilm
 
+    init() {
+        // Launcher override for automated verification:
+        // SIMCTL_CHILD_OPTICS_EFFECT=nacre xcrun simctl launch ...
+        if let raw = ProcessInfo.processInfo.environment["OPTICS_EFFECT"],
+           let effect = OpticsEffect(rawValue: raw) {
+            selectedEffect = effect
+        }
+    }
+
     // MARK: - Film (soap bubble) parameters
 
     var thicknessScale: Float = 0.85 { didSet { pushFilmParameters() } }
@@ -39,6 +48,13 @@ final class AppModel {
         didSet { pushGratingParameters() }
     }
 
+    // MARK: - Nacre parameters
+
+    var nacreThicknessScale: Float = 0.55 { didSet { pushNacreParameters() } }
+    var nacreThicknessBias: Float = 0.25 { didSet { pushNacreParameters() } }
+    var nacreNoiseAmount: Float = 0.08 { didSet { pushNacreParameters() } }
+    var nacreGain: Float = 1.4 { didSet { pushNacreParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -46,8 +62,10 @@ final class AppModel {
 
     private(set) var filmMaterial: ShaderGraphMaterial?
     private(set) var gratingMaterial: ShaderGraphMaterial?
+    private(set) var nacreMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
+    private(set) var nacreLUT: LUTTexture?
     private(set) var statusMessage = "Booting optics…"
 
     /// Bumped whenever a material is (re)created or re-parameterized.
@@ -105,6 +123,21 @@ final class AppModel {
                             get: { [weak self] in self?.lightAzimuthDeg ?? 0 },
                             set: { [weak self] in self?.lightAzimuthDeg = $0 }),
             ]
+        case .nacre:
+            return [
+                SettingSpec(id: "nScale", label: "Thickness scale", range: 0...1.2,
+                            get: { [weak self] in self?.nacreThicknessScale ?? 0 },
+                            set: { [weak self] in self?.nacreThicknessScale = $0 }),
+                SettingSpec(id: "nBias", label: "Thickness bias", range: 0...0.6,
+                            get: { [weak self] in self?.nacreThicknessBias ?? 0 },
+                            set: { [weak self] in self?.nacreThicknessBias = $0 }),
+                SettingSpec(id: "nNoise", label: "Noise amount", range: 0...0.3,
+                            get: { [weak self] in self?.nacreNoiseAmount ?? 0 },
+                            set: { [weak self] in self?.nacreNoiseAmount = $0 }),
+                SettingSpec(id: "nGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.nacreGain ?? 0 },
+                            set: { [weak self] in self?.nacreGain = $0 }),
+            ]
         default:
             return []
         }
@@ -121,13 +154,19 @@ final class AppModel {
         let gratingBytes = try await Task.detached(priority: .userInitiated) {
             LUTFactory.makeGratingLUT()
         }.value
+        let nacreBytes = try await Task.detached(priority: .userInitiated) {
+            LUTFactory.makeNacreLUT()
+        }.value
 
         let filmTexture = try LUTTexture(width: 256, height: 256)
         filmTexture.upload(halves: filmBytes)
         let gratingTexture = try LUTTexture(width: 256, height: 128)
         gratingTexture.upload(halves: gratingBytes)
+        let nacreTexture = try LUTTexture(width: 256, height: 256)
+        nacreTexture.upload(halves: nacreBytes)
         self.filmLUT = filmTexture
         self.gratingLUT = gratingTexture
+        self.nacreLUT = nacreTexture
 
         do {
             var film = try await ShaderGraphMaterial(
@@ -160,7 +199,31 @@ final class AppModel {
             return
         }
 
+        do {
+            let nacre = try await loadLutMaterial(
+                prim: "/Root/NacreMaterial",
+                file: "Materials/NacreMaterial.usda",
+                lutName: "NacreLUT",
+                texture: nacreTexture.resource
+            )
+            self.nacreMaterial = nacre
+            pushNacreParameters()
+        } catch {
+            statusMessage = "nacre err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
+    }
+
+    /// Common loader for the LUT-sampling unlit materials.
+    private func loadLutMaterial(
+        prim: String, file: String, lutName: String, texture: TextureResource
+    ) async throws -> ShaderGraphMaterial {
+        var material = try await ShaderGraphMaterial(named: prim, from: file, in: opticsContentBundle)
+        try material.setParameter(name: lutName, value: .textureResource(texture))
+        material.faceCulling = .none
+        return material
     }
 
     // MARK: - Scene object management
@@ -183,7 +246,8 @@ final class AppModel {
         let keep = entityName(for: effect)
 
         // Remove entities that belong to a different effect.
-        for name in ["Bubble", "CompactDisc", "Placeholder"] where name != keep {
+        let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "Placeholder"]
+        for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
 
@@ -200,6 +264,20 @@ final class AppModel {
                 bubble.name = keep
                 bubble.position = SIMD3(0, -0.02, 0)
                 root.addChild(bubble)
+            }
+
+        case .nacre:
+            guard let nacre = nacreMaterial else { return }
+            if let shell = root.findEntity(named: keep) {
+                assign(nacre, to: shell)
+            } else {
+                let shell = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [nacre]
+                )
+                shell.name = keep
+                shell.position = SIMD3(0, -0.02, 0)
+                root.addChild(shell)
             }
 
         case .grating:
@@ -292,6 +370,16 @@ final class AppModel {
         let dir = SIMD3<Float>(cos(az) * 0.65, 0.55, sin(az) * 0.65)
         setParam(&grating, "LightDirection", .simd3Float(dir))
         gratingMaterial = grating
+        materialRevision += 1
+    }
+
+    private func pushNacreParameters() {
+        guard var nacre = nacreMaterial else { return }
+        setParam(&nacre, "ThicknessScale", .float(nacreThicknessScale))
+        setParam(&nacre, "ThicknessBias", .float(nacreThicknessBias))
+        setParam(&nacre, "NoiseAmount", .float(nacreNoiseAmount))
+        setParam(&nacre, "Gain", .float(nacreGain))
+        nacreMaterial = nacre
         materialRevision += 1
     }
 

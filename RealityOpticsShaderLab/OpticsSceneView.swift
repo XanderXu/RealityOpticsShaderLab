@@ -19,23 +19,19 @@ struct OpticsSceneView: View {
                 model.syncSceneObjects()
             }
 
-            // Turntable rotation: keeps view/normal geometry sweeping so the
-            // angular color changes stay visible without any head motion.
+            // Turntable rotation for whichever effect object is present.
             // Paused via the toolbar button for closer inspection.
             var spin: Float = 0
             let lean = simd_quatf(angle: -0.7, axis: SIMD3(1, 0, 0))
             _ = content.subscribe(to: SceneEvents.Update.self) { event in
                 guard model.isAnimating else { return }
                 spin += Float(event.deltaTime)
-                if let bubble = root.findEntity(named: "Bubble") {
-                    bubble.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0))
-                }
-                if let cd = root.findEntity(named: "CompactDisc") {
-                    cd.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
-                }
-                // Placeholder objects turn gently so their silhouette reads as 3D.
-                if let ph = root.findEntity(named: "Placeholder") {
-                    ph.orientation = simd_quatf(angle: spin * 0.15, axis: SIMD3(0, 1, 0))
+                for child in root.children {
+                    if child.name == "CompactDisc" {
+                        child.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
+                    } else {
+                        child.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0))
+                    }
                 }
             }
         }

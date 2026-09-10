@@ -94,6 +94,9 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     }
 
     var isImplemented: Bool {
-        self == .thinFilm || self == .grating
+        switch self {
+        case .thinFilm, .grating, .nacre: return true
+        default: return false
+        }
     }
 }
