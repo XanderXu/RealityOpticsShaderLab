@@ -484,9 +484,7 @@ final class AppModel {
         let keep = entityName(for: effect)
 
         // Remove entities that belong to a different effect.
-        let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
-                          "BirefrRuler", "SpeckleSphere", "MorphoWing", "BeetleShell",
-                          "FeatherVane", "Placeholder"]
+        let knownNames = OpticsEffect.allCases.map { entityName(for: $0) } + ["Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
