@@ -20,6 +20,8 @@ struct OpticsSceneView: View {
             }
 
             // Turntable rotation for whichever effect object is present.
+            // The morpho wing oscillates instead of spinning: grazing angles
+            // wash the structural blue out with white Fresnel reflection.
             // Paused via the toolbar button for closer inspection.
             var spin: Float = 0
             let lean = simd_quatf(angle: -0.7, axis: SIMD3(1, 0, 0))
@@ -29,6 +31,9 @@ struct OpticsSceneView: View {
                 for child in root.children {
                     if child.name == "CompactDisc" {
                         child.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
+                    } else if child.name == "MorphoWing" {
+                        let sway = sin(spin * 0.5) * 0.6
+                        child.orientation = simd_quatf(angle: sway, axis: SIMD3(0, 1, 0))
                     } else {
                         child.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0))
                     }

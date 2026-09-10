@@ -1,0 +1,190 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "MorphoMaterial"
+    {
+        asset inputs:MorphoLUT
+        float inputs:ThicknessScale = 0.0
+        float inputs:ThicknessBias = 0.18
+        float inputs:NoiseAmount = 0.06
+        float inputs:Gain = 1.8
+        float inputs:Opacity = 0.92
+        token outputs:mtlx:surface.connect = </Root/MorphoMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/MorphoMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MorphoMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/MorphoMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/MorphoMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ClampNV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/MorphoMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/MorphoMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "OneMinusV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/MorphoMaterial/SepUV.outputs:outy>
+            float outputs:out
+        }
+
+        def Shader "BaseThick"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MorphoMaterial/OneMinusV.outputs:out>
+            float inputs:in2.connect = </Root/MorphoMaterial.inputs:ThicknessScale>
+            float outputs:out
+        }
+
+        def Shader "BiasThick"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MorphoMaterial/BaseThick.outputs:out>
+            float inputs:in2.connect = </Root/MorphoMaterial.inputs:ThicknessBias>
+            float outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float3 inputs:in.connect = </Root/MorphoMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/MorphoMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 4
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/MorphoMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "NoiseMul"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MorphoMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/MorphoMaterial.inputs:NoiseAmount>
+            float outputs:out
+        }
+
+        def Shader "ThickSum"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MorphoMaterial/BiasThick.outputs:out>
+            float inputs:in2.connect = </Root/MorphoMaterial/NoiseMul.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ThickClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/MorphoMaterial/ThickSum.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/MorphoMaterial/ClampNV.outputs:out>
+            float inputs:in2.connect = </Root/MorphoMaterial/ThickClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "FilmImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/MorphoMaterial.inputs:MorphoLUT>
+            float2 inputs:texcoord.connect = </Root/MorphoMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/MorphoMaterial/FilmImage.outputs:out>
+            float inputs:in2.connect = </Root/MorphoMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/MorphoMaterial/GainMul.outputs:out>
+            float inputs:opacity.connect = </Root/MorphoMaterial.inputs:Opacity>
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

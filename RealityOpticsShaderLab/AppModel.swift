@@ -74,6 +74,13 @@ final class AppModel {
     var speckleThreshold: Float = 0.82 { didSet { pushSpeckleParameters() } }
     var speckleGain: Float = 1.6 { didSet { pushSpeckleParameters() } }
 
+    // MARK: - Morpho parameters
+
+    // 216nm chitin => first-order reflection peak at 450nm blue at normal incidence
+    var morphoThicknessBias: Float = 0.18 { didSet { pushMorphoParameters() } }
+    var morphoNoiseAmount: Float = 0.06 { didSet { pushMorphoParameters() } }
+    var morphoGain: Float = 1.8 { didSet { pushMorphoParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -85,10 +92,12 @@ final class AppModel {
     private(set) var opalMaterial: ShaderGraphMaterial?
     private(set) var birefringenceMaterial: ShaderGraphMaterial?
     private(set) var speckleMaterial: ShaderGraphMaterial?
+    private(set) var morphoMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
     private(set) var birefringenceLUT: LUTTexture?
+    private(set) var morphoLUT: LUTTexture?
     private(set) var statusMessage = "Booting optics…"
 
     /// Bumped whenever a material is (re)created or re-parameterized.
@@ -200,6 +209,18 @@ final class AppModel {
                             get: { [weak self] in self?.speckleGain ?? 0 },
                             set: { [weak self] in self?.speckleGain = $0 }),
             ]
+        case .morpho:
+            return [
+                SettingSpec(id: "mBias", label: "Thickness (blue band)", range: 0.2...0.45,
+                            get: { [weak self] in self?.morphoThicknessBias ?? 0 },
+                            set: { [weak self] in self?.morphoThicknessBias = $0 }),
+                SettingSpec(id: "mNoise", label: "Ridge noise", range: 0...0.35,
+                            get: { [weak self] in self?.morphoNoiseAmount ?? 0 },
+                            set: { [weak self] in self?.morphoNoiseAmount = $0 }),
+                SettingSpec(id: "mGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.morphoGain ?? 0 },
+                            set: { [weak self] in self?.morphoGain = $0 }),
+            ]
         default:
             return []
         }
@@ -222,6 +243,9 @@ final class AppModel {
         let birefrBytes = try await Task.detached(priority: .userInitiated) {
             LUTFactory.makeBirefringenceLUT()
         }.value
+        let morphoBytes = try await Task.detached(priority: .userInitiated) {
+            LUTFactory.makeMorphoLUT()
+        }.value
 
         let filmTexture = try LUTTexture(width: 256, height: 256)
         filmTexture.upload(halves: filmBytes)
@@ -231,10 +255,13 @@ final class AppModel {
         nacreTexture.upload(halves: nacreBytes)
         let birefrTexture = try LUTTexture(width: 512, height: 8)
         birefrTexture.upload(halves: birefrBytes)
+        let morphoTexture = try LUTTexture(width: 256, height: 256)
+        morphoTexture.upload(halves: morphoBytes)
         self.filmLUT = filmTexture
         self.gratingLUT = gratingTexture
         self.nacreLUT = nacreTexture
         self.birefringenceLUT = birefrTexture
+        self.morphoLUT = morphoTexture
 
         do {
             var film = try await ShaderGraphMaterial(
@@ -327,6 +354,20 @@ final class AppModel {
             return
         }
 
+        do {
+            let morpho = try await loadLutMaterial(
+                prim: "/Root/MorphoMaterial",
+                file: "Materials/MorphoMaterial.usda",
+                lutName: "MorphoLUT",
+                texture: morphoTexture.resource
+            )
+            self.morphoMaterial = morpho
+            pushMorphoParameters()
+        } catch {
+            statusMessage = "morpho err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -350,6 +391,7 @@ final class AppModel {
         case .opal: return "OpalSphere"
         case .birefringence: return "BirefrRuler"
         case .speckle: return "SpeckleSphere"
+        case .morpho: return "MorphoWing"
         default: return "Placeholder"
         }
     }
@@ -365,7 +407,7 @@ final class AppModel {
 
         // Remove entities that belong to a different effect.
         let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
-                          "BirefrRuler", "SpeckleSphere", "Placeholder"]
+                          "BirefrRuler", "SpeckleSphere", "MorphoWing", "Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
@@ -439,6 +481,20 @@ final class AppModel {
                 screen.name = keep
                 screen.position = SIMD3(0, -0.02, 0)
                 root.addChild(screen)
+            }
+
+        case .morpho:
+            guard let morpho = morphoMaterial else { return }
+            if let wing = root.findEntity(named: keep) {
+                assign(morpho, to: wing)
+            } else {
+                let wing = ModelEntity(
+                    mesh: .generatePlane(width: 0.34, height: 0.2),
+                    materials: [morpho]
+                )
+                wing.name = keep
+                wing.position = SIMD3(0, -0.02, -0.02)
+                root.addChild(wing)
             }
 
         case .grating:
@@ -569,6 +625,18 @@ final class AppModel {
         setParam(&speckle, "Threshold", .float(speckleThreshold))
         setParam(&speckle, "Gain", .float(speckleGain))
         speckleMaterial = speckle
+        materialRevision += 1
+    }
+
+    private func pushMorphoParameters() {
+        guard var morpho = morphoMaterial else { return }
+        // No spatial thickness gradient: the whole wing sits in the blue band,
+        // noise only adds subtle ridge-scale variation.
+        setParam(&morpho, "ThicknessScale", .float(0.0))
+        setParam(&morpho, "ThicknessBias", .float(morphoThicknessBias))
+        setParam(&morpho, "NoiseAmount", .float(morphoNoiseAmount))
+        setParam(&morpho, "Gain", .float(morphoGain))
+        morphoMaterial = morpho
         materialRevision += 1
     }
 

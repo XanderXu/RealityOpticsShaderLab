@@ -44,11 +44,21 @@ final class LUTTexture {
     /// Uses the documented `replace(using:)` + blit-encoder path: writing the
     /// underlying MTLTexture directly from the CPU can deadlock against
     /// RealityKit's in-flight frames on the simulator.
+    /// Row order is flipped here: MaterialX samples textures bottom-up while
+    /// the byte buffer is written top-down, so V axes read as authored.
     func upload(halves: [UInt16]) {
         precondition(halves.count == width * height * 4)
-        let byteCount = halves.count * MemoryLayout<UInt16>.stride
+        var flipped = [UInt16](repeating: 0, count: halves.count)
+        let rowLen = width * 4
+        for y in 0..<height {
+            flipped.replaceSubrange(
+                y * rowLen..<((y + 1) * rowLen),
+                with: halves[(height - 1 - y) * rowLen..<(height - y) * rowLen]
+            )
+        }
+        let byteCount = flipped.count * MemoryLayout<UInt16>.stride
         guard let commandBuffer = commandQueue.makeCommandBuffer(),
-              let staging = device.makeBuffer(bytes: halves, length: byteCount, options: .storageModeShared),
+              let staging = device.makeBuffer(bytes: flipped, length: byteCount, options: .storageModeShared),
               let blit = commandBuffer.makeBlitCommandEncoder() else {
             print("RealityOpticsShaderLab: failed to build LUT upload command buffer")
             return
@@ -89,5 +99,11 @@ enum LUTFactory {
 
     nonisolated static func makeBirefringenceLUT() -> [UInt16] {
         return LUTBuilder.birefringenceLUT(width: 512)
+    }
+
+    nonisolated static func makeMorphoLUT() -> [UInt16] {
+        // Chitin (n≈1.56), moderate ridge spread: wide-angle blue film.
+        let config = ThinFilmConfig(n2: 1.56, sigmaD: 30)
+        return LUTBuilder.filmLUT(width: 256, height: 256, config: config)
     }
 }
