@@ -1,0 +1,163 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "SpeckleMaterial"
+    {
+        float inputs:SpeckScale = 220
+        float inputs:Flow = 0.35
+        float inputs:Threshold = 0.82
+        float inputs:Gain = 1.6
+        token outputs:mtlx:surface.connect = </Root/SpeckleMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/SpeckleMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/SpeckleMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "SepView"
+        {
+            uniform token info:id = "ND_separate3_vector3"
+            float3 inputs:in.connect = </Root/SpeckleMaterial/ViewDir.outputs:out>
+            float outputs:outx
+            float outputs:outy
+            float outputs:outz
+        }
+
+        def Shader "FlowX"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial/SepView.outputs:outx>
+            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Flow>
+            float outputs:out
+        }
+
+        def Shader "FlowY"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial/SepView.outputs:outy>
+            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Flow>
+            float outputs:out
+        }
+
+        def Shader "UVx"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/SpeckleMaterial/FlowX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UVy"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/SpeckleMaterial/FlowY.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FlowUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/SpeckleMaterial/UVx.outputs:out>
+            float inputs:in2.connect = </Root/SpeckleMaterial/UVy.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "CellUV"
+        {
+            uniform token info:id = "ND_multiply_vector2FA"
+            float2 inputs:in1.connect = </Root/SpeckleMaterial/FlowUV.outputs:out>
+            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:SpeckScale>
+            float2 outputs:out
+        }
+
+        def Shader "GrainRand"
+        {
+            uniform token info:id = "ND_cellnoise2d_float"
+            float2 inputs:texcoord.connect = </Root/SpeckleMaterial/CellUV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "High"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial.inputs:Threshold>
+            float inputs:in2 = 0.05
+            float outputs:out
+        }
+
+        def Shader "Sparkle"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/SpeckleMaterial/GrainRand.outputs:out>
+            float inputs:low.connect = </Root/SpeckleMaterial.inputs:Threshold>
+            float inputs:high.connect = </Root/SpeckleMaterial/High.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LaserColor"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.35, 1, 0.45)
+            color3f outputs:out
+        }
+
+        def Shader "Beam"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/LaserColor.outputs:out>
+            float inputs:in2.connect = </Root/SpeckleMaterial/Sparkle.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/Beam.outputs:out>
+            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

@@ -67,6 +67,13 @@ final class AppModel {
     var birefrNoiseAmount: Float = 0.3 { didSet { pushBirefringenceParameters() } }
     var birefrGain: Float = 1.3 { didSet { pushBirefringenceParameters() } }
 
+    // MARK: - Speckle parameters
+
+    var speckleScale: Float = 220 { didSet { pushSpeckleParameters() } }
+    var speckleFlow: Float = 0.35 { didSet { pushSpeckleParameters() } }
+    var speckleThreshold: Float = 0.82 { didSet { pushSpeckleParameters() } }
+    var speckleGain: Float = 1.6 { didSet { pushSpeckleParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -77,6 +84,7 @@ final class AppModel {
     private(set) var nacreMaterial: ShaderGraphMaterial?
     private(set) var opalMaterial: ShaderGraphMaterial?
     private(set) var birefringenceMaterial: ShaderGraphMaterial?
+    private(set) var speckleMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
@@ -176,6 +184,21 @@ final class AppModel {
                 SettingSpec(id: "bGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.birefrGain ?? 0 },
                             set: { [weak self] in self?.birefrGain = $0 }),
+            ]
+        case .speckle:
+            return [
+                SettingSpec(id: "sScale", label: "Grain density", range: 60...400,
+                            get: { [weak self] in self?.speckleScale ?? 0 },
+                            set: { [weak self] in self?.speckleScale = $0 }),
+                SettingSpec(id: "sFlow", label: "View flow", range: 0...1,
+                            get: { [weak self] in self?.speckleFlow ?? 0 },
+                            set: { [weak self] in self?.speckleFlow = $0 }),
+                SettingSpec(id: "sThresh", label: "Spot threshold", range: 0.5...0.98,
+                            get: { [weak self] in self?.speckleThreshold ?? 0 },
+                            set: { [weak self] in self?.speckleThreshold = $0 }),
+                SettingSpec(id: "sGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.speckleGain ?? 0 },
+                            set: { [weak self] in self?.speckleGain = $0 }),
             ]
         default:
             return []
@@ -288,6 +311,22 @@ final class AppModel {
             return
         }
 
+        do {
+            // Speckle is fully procedural in-graph (cell hash on view-shifted
+            // UVs); no LUT needed.
+            var speckle = try await ShaderGraphMaterial(
+                named: "/Root/SpeckleMaterial",
+                from: "Materials/SpeckleMaterial.usda",
+                in: opticsContentBundle
+            )
+            speckle.faceCulling = .none
+            self.speckleMaterial = speckle
+            pushSpeckleParameters()
+        } catch {
+            statusMessage = "speckle err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -310,6 +349,7 @@ final class AppModel {
         case .nacre: return "NacreSphere"
         case .opal: return "OpalSphere"
         case .birefringence: return "BirefrRuler"
+        case .speckle: return "SpeckleSphere"
         default: return "Placeholder"
         }
     }
@@ -325,7 +365,7 @@ final class AppModel {
 
         // Remove entities that belong to a different effect.
         let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
-                          "BirefrRuler", "Placeholder"]
+                          "BirefrRuler", "SpeckleSphere", "Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
@@ -385,6 +425,20 @@ final class AppModel {
                 ruler.name = keep
                 ruler.position = SIMD3(0, -0.03, 0)
                 root.addChild(ruler)
+            }
+
+        case .speckle:
+            guard let speckle = speckleMaterial else { return }
+            if let screen = root.findEntity(named: keep) {
+                assign(speckle, to: screen)
+            } else {
+                let screen = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [speckle]
+                )
+                screen.name = keep
+                screen.position = SIMD3(0, -0.02, 0)
+                root.addChild(screen)
             }
 
         case .grating:
@@ -505,6 +559,16 @@ final class AppModel {
         setParam(&birefr, "NoiseAmount", .float(birefrNoiseAmount))
         setParam(&birefr, "Gain", .float(birefrGain))
         birefringenceMaterial = birefr
+        materialRevision += 1
+    }
+
+    private func pushSpeckleParameters() {
+        guard var speckle = speckleMaterial else { return }
+        setParam(&speckle, "SpeckScale", .float(speckleScale))
+        setParam(&speckle, "Flow", .float(speckleFlow))
+        setParam(&speckle, "Threshold", .float(speckleThreshold))
+        setParam(&speckle, "Gain", .float(speckleGain))
+        speckleMaterial = speckle
         materialRevision += 1
     }
 
