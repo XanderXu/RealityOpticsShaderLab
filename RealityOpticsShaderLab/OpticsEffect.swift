@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Catalog of wave-optics effects demoed by the app.
 /// Implemented ones ship a physics LUT + shader graph; the rest are listed
@@ -33,15 +33,30 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     /// Short label for the picker menu.
     var menuTitle: String {
         switch self {
-        case .thinFilm: return "薄膜干涉 · 肥皂泡"
-        case .grating: return "衍射光栅 · CD"
-        case .nacre: return "珍珠母/珠光"
-        case .opal: return "欧泊/猫眼石"
-        case .birefringence: return "双折射/光弹性"
+        case .thinFilm: return "薄膜干涉"
+        case .grating: return "衍射光栅"
+        case .nacre: return "珍珠母"
+        case .opal: return "欧泊"
+        case .birefringence: return "双折射"
         case .speckle: return "激光散斑"
         case .morpho: return "闪蝶翅膀"
         case .beetle: return "吉丁虫鞘翅"
-        case .feather: return "蜂鸟/孔雀羽"
+        case .feather: return "孔雀羽"
+        }
+    }
+
+    /// SF Symbol used on the effect card.
+    var iconName: String {
+        switch self {
+        case .thinFilm: return "circle.dashed"
+        case .grating: return "opticaldisc"
+        case .nacre: return "seashell"
+        case .opal: return "diamond"
+        case .birefringence: return "ruler"
+        case .speckle: return "sparkles"
+        case .morpho: return "butterfly"
+        case .beetle: return "ant"
+        case .feather: return "feather"
         }
     }
 
