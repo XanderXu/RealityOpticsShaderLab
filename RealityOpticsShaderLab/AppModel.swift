@@ -61,6 +61,12 @@ final class AppModel {
     var opalJitter: Float = 0.5 { didSet { pushOpalParameters() } }
     var opalGain: Float = 1.5 { didSet { pushOpalParameters() } }
 
+    // MARK: - Birefringence parameters
+
+    var birefrPhaseScale: Float = 2.0 { didSet { pushBirefringenceParameters() } }
+    var birefrNoiseAmount: Float = 0.3 { didSet { pushBirefringenceParameters() } }
+    var birefrGain: Float = 1.3 { didSet { pushBirefringenceParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -70,9 +76,11 @@ final class AppModel {
     private(set) var gratingMaterial: ShaderGraphMaterial?
     private(set) var nacreMaterial: ShaderGraphMaterial?
     private(set) var opalMaterial: ShaderGraphMaterial?
+    private(set) var birefringenceMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
+    private(set) var birefringenceLUT: LUTTexture?
     private(set) var statusMessage = "Booting optics…"
 
     /// Bumped whenever a material is (re)created or re-parameterized.
@@ -157,6 +165,18 @@ final class AppModel {
                             get: { [weak self] in self?.opalGain ?? 0 },
                             set: { [weak self] in self?.opalGain = $0 }),
             ]
+        case .birefringence:
+            return [
+                SettingSpec(id: "bPhase", label: "Phase rings", range: 0.5...4,
+                            get: { [weak self] in self?.birefrPhaseScale ?? 0 },
+                            set: { [weak self] in self?.birefrPhaseScale = $0 }),
+                SettingSpec(id: "bNoise", label: "Stress noise", range: 0...1,
+                            get: { [weak self] in self?.birefrNoiseAmount ?? 0 },
+                            set: { [weak self] in self?.birefrNoiseAmount = $0 }),
+                SettingSpec(id: "bGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.birefrGain ?? 0 },
+                            set: { [weak self] in self?.birefrGain = $0 }),
+            ]
         default:
             return []
         }
@@ -176,6 +196,9 @@ final class AppModel {
         let nacreBytes = try await Task.detached(priority: .userInitiated) {
             LUTFactory.makeNacreLUT()
         }.value
+        let birefrBytes = try await Task.detached(priority: .userInitiated) {
+            LUTFactory.makeBirefringenceLUT()
+        }.value
 
         let filmTexture = try LUTTexture(width: 256, height: 256)
         filmTexture.upload(halves: filmBytes)
@@ -183,9 +206,12 @@ final class AppModel {
         gratingTexture.upload(halves: gratingBytes)
         let nacreTexture = try LUTTexture(width: 256, height: 256)
         nacreTexture.upload(halves: nacreBytes)
+        let birefrTexture = try LUTTexture(width: 512, height: 8)
+        birefrTexture.upload(halves: birefrBytes)
         self.filmLUT = filmTexture
         self.gratingLUT = gratingTexture
         self.nacreLUT = nacreTexture
+        self.birefringenceLUT = birefrTexture
 
         do {
             var film = try await ShaderGraphMaterial(
@@ -248,6 +274,20 @@ final class AppModel {
             return
         }
 
+        do {
+            let birefr = try await loadLutMaterial(
+                prim: "/Root/BirefringenceMaterial",
+                file: "Materials/BirefringenceMaterial.usda",
+                lutName: "PhaseLUT",
+                texture: birefrTexture.resource
+            )
+            self.birefringenceMaterial = birefr
+            pushBirefringenceParameters()
+        } catch {
+            statusMessage = "birefr err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -267,6 +307,9 @@ final class AppModel {
         switch effect {
         case .thinFilm: return "Bubble"
         case .grating: return "CompactDisc"
+        case .nacre: return "NacreSphere"
+        case .opal: return "OpalSphere"
+        case .birefringence: return "BirefrRuler"
         default: return "Placeholder"
         }
     }
@@ -281,7 +324,8 @@ final class AppModel {
         let keep = entityName(for: effect)
 
         // Remove entities that belong to a different effect.
-        let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "Placeholder"]
+        let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
+                          "BirefrRuler", "Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
@@ -327,6 +371,20 @@ final class AppModel {
                 stone.name = keep
                 stone.position = SIMD3(0, -0.02, 0)
                 root.addChild(stone)
+            }
+
+        case .birefringence:
+            guard let birefr = birefringenceMaterial else { return }
+            if let ruler = root.findEntity(named: keep) {
+                assign(birefr, to: ruler)
+            } else {
+                let ruler = ModelEntity(
+                    mesh: .generateBox(width: 0.36, height: 0.02, depth: 0.07),
+                    materials: [birefr]
+                )
+                ruler.name = keep
+                ruler.position = SIMD3(0, -0.03, 0)
+                root.addChild(ruler)
             }
 
         case .grating:
@@ -438,6 +496,15 @@ final class AppModel {
         setParam(&opal, "Jitter", .float(opalJitter))
         setParam(&opal, "Gain", .float(opalGain))
         opalMaterial = opal
+        materialRevision += 1
+    }
+
+    private func pushBirefringenceParameters() {
+        guard var birefr = birefringenceMaterial else { return }
+        setParam(&birefr, "PhaseScale", .float(birefrPhaseScale))
+        setParam(&birefr, "NoiseAmount", .float(birefrNoiseAmount))
+        setParam(&birefr, "Gain", .float(birefrGain))
+        birefringenceMaterial = birefr
         materialRevision += 1
     }
 

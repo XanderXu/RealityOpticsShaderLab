@@ -95,6 +95,39 @@ public enum LUTBuilder {
         return c * (1 - amount) + gray * amount
     }
 
+    /// Axis helper for LUTs indexed by a phase in [0, 2π].
+    public static func birefringenceDelta(u: Float) -> Float { u * 2 * .pi }
+    public static func birefringenceU(delta: Float) -> Float { delta / (2 * .pi) }
+
+    /// Photoelasticity: transmission through crossed polarizers for a
+    /// retarder of phase delta (radians, referenced to 550 nm):
+    /// T(lambda) = sin^2(delta * lambdaRef / (2 lambda)).
+    /// U axis = delta / 2pi in [0, 1]; V is unused (8 rows).
+    public static func birefringenceLUT(width: Int = 512) -> [UInt16] {
+        let height = 8
+        var out = [UInt16](repeating: 0, count: width * height * 4)
+        let lambdaRef: Float = 550
+        var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+        for x in 0..<width {
+            let u = (Float(x) + 0.5) / Float(width)
+            let delta = birefringenceDelta(u: u)
+            for i in 0..<Spectrum.sampleCount {
+                let lambda = Spectrum.wavelength(i)
+                let t = sin(delta * lambdaRef / (2 * lambda))
+                samples[i] = t * t
+            }
+            let rgb = Spectrum.rgb(samples: samples)
+            for y in 0..<height {
+                let base = (y * width + x) * 4
+                out[base + 0] = floatToHalf(clampForTexture(rgb.x))
+                out[base + 1] = floatToHalf(clampForTexture(rgb.y))
+                out[base + 2] = floatToHalf(clampForTexture(rgb.z))
+                out[base + 3] = 0x3C00
+            }
+        }
+        return out
+    }
+
     /// RGBA16F texture, row-major from v=0 (bottom) upward.
     public static func gratingLUT(
         width: Int = 256,

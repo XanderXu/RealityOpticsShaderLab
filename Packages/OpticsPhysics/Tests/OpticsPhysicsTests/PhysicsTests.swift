@@ -112,6 +112,45 @@ final class DiffractionGratingTests: XCTestCase {
     }
 }
 
+final class BirefringenceTests: XCTestCase {
+
+    func testPiRetardanceTransmitsGreen() {
+        // delta = pi -> 550 nm fully transmitted through crossed polarizers
+        var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+        let delta: Float = .pi
+        for i in 0..<Spectrum.sampleCount {
+            let lambda = Spectrum.wavelength(i)
+            let t = sin(delta * 550 / (2 * lambda))
+            samples[i] = t * t
+        }
+        let rgb = Spectrum.rgb(samples: samples)
+        XCTAssertGreaterThan(rgb.y, 0.15, "550nm should pass at pi retardance")
+    }
+
+    func testTwoPiRetardanceExtinctAtReference() {
+        // delta = 2pi -> 550 nm extinct; total luminance below the pi case
+        func integrate(_ delta: Float) -> Float {
+            var samples = [Float](repeating: 0, count: Spectrum.sampleCount)
+            for i in 0..<Spectrum.sampleCount {
+                let lambda = Spectrum.wavelength(i)
+                let t = sin(delta * 550 / (2 * lambda))
+                samples[i] = t * t
+            }
+            return Spectrum.rgb(samples: samples).y
+        }
+        XCTAssertLessThan(integrate(2 * .pi), integrate(.pi) * 0.6,
+                          "2pi retardance should be darker than pi at 550nm")
+    }
+
+    func testBirefringenceLUTNonBlack() {
+        let lut = LUTBuilder.birefringenceLUT(width: 64)
+        XCTAssertEqual(lut.count, 64 * 8 * 4)
+        var hasColor = false
+        for t in 0..<64 where lut[t * 4 + 1] != 0 { hasColor = true }
+        XCTAssertTrue(hasColor)
+    }
+}
+
 final class LUTBuilderTests: XCTestCase {
 
     func testHalfConversion() {

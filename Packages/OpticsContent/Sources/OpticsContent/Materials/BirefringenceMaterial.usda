@@ -1,0 +1,143 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "BirefringenceMaterial"
+    {
+        asset inputs:PhaseLUT
+        float inputs:PhaseScale = 2.0
+        float inputs:NoiseAmount = 0.3
+        float inputs:Gain = 1.3
+        token outputs:mtlx:surface.connect = </Root/BirefringenceMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/BirefringenceMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/BirefringenceMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "Grad"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:PhaseScale>
+            float outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float3 inputs:in.connect = </Root/BirefringenceMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/BirefringenceMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 4
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/BirefringenceMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "NoiseMul"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:NoiseAmount>
+            float outputs:out
+        }
+
+        def Shader "Phase"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/Grad.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/NoiseMul.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PhaseClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/BirefringenceMaterial/Phase.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/PhaseClamp.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/Half.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "PhaseImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/BirefringenceMaterial.inputs:PhaseLUT>
+            float2 inputs:texcoord.connect = </Root/BirefringenceMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/BirefringenceMaterial/PhaseImage.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/BirefringenceMaterial/GainMul.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

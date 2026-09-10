@@ -86,4 +86,8 @@ enum LUTFactory {
     nonisolated static func makeNacreLUT() -> [UInt16] {
         return LUTBuilder.nacreLUT(width: 256, height: 256)
     }
+
+    nonisolated static func makeBirefringenceLUT() -> [UInt16] {
+        return LUTBuilder.birefringenceLUT(width: 512)
+    }
 }
