@@ -142,18 +142,10 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "U01"
-        {
-            uniform token info:id = "ND_add_float"
-            float inputs:in1.connect = </Root/BeetleMaterial/DeltaQuarter.outputs:out>
-            float inputs:in2 = 0
-            float outputs:out
-        }
-
         def Shader "UClamp"
         {
             uniform token info:id = "ND_clamp_float"
-            float inputs:in.connect = </Root/BeetleMaterial/U01.outputs:out>
+            float inputs:in.connect = </Root/BeetleMaterial/DeltaQuarter.outputs:out>
             float inputs:low = 0
             float inputs:high = 1
             float outputs:out

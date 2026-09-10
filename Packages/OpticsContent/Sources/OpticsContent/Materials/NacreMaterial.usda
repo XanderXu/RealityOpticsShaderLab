@@ -98,7 +98,7 @@ def Xform "Root"
         def Shader "UVtoV3"
         {
             uniform token info:id = "ND_convert_vector2_vector3"
-            float3 inputs:in.connect = </Root/NacreMaterial/Texcoord.outputs:out>
+            float2 inputs:in.connect = </Root/NacreMaterial/Texcoord.outputs:out>
             float3 outputs:out
         }
 

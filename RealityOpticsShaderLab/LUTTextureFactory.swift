@@ -24,7 +24,7 @@ final class LUTTexture {
         descriptor.depth = 1
         descriptor.mipmapLevelCount = 1
         descriptor.pixelFormat = .rgba16Float
-        descriptor.textureUsage = [.shaderRead]
+        descriptor.textureUsage = [.shaderRead, .shaderWrite]
         descriptor.swizzle = .init(red: .red, green: .green, blue: .blue, alpha: .alpha)
 
         self.lowLevelTexture = try LowLevelTexture(descriptor: descriptor)
