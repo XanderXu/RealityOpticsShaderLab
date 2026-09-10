@@ -81,6 +81,12 @@ final class AppModel {
     var morphoNoiseAmount: Float = 0.06 { didSet { pushMorphoParameters() } }
     var morphoGain: Float = 1.8 { didSet { pushMorphoParameters() } }
 
+    // MARK: - Beetle parameters
+
+    var beetleGreenBand: Float = 0.22 { didSet { pushBeetleParameters() } }
+    var beetleRainbowMix: Float = 0.35 { didSet { pushBeetleParameters() } }
+    var beetleGain: Float = 1.8 { didSet { pushBeetleParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -93,6 +99,7 @@ final class AppModel {
     private(set) var birefringenceMaterial: ShaderGraphMaterial?
     private(set) var speckleMaterial: ShaderGraphMaterial?
     private(set) var morphoMaterial: ShaderGraphMaterial?
+    private(set) var beetleMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
@@ -220,6 +227,18 @@ final class AppModel {
                 SettingSpec(id: "mGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.morphoGain ?? 0 },
                             set: { [weak self] in self?.morphoGain = $0 }),
+            ]
+        case .beetle:
+            return [
+                SettingSpec(id: "kGreen", label: "Green band", range: 0.15...0.3,
+                            get: { [weak self] in self?.beetleGreenBand ?? 0 },
+                            set: { [weak self] in self?.beetleGreenBand = $0 }),
+                SettingSpec(id: "kRainbow", label: "Rainbow mix", range: 0...1,
+                            get: { [weak self] in self?.beetleRainbowMix ?? 0 },
+                            set: { [weak self] in self?.beetleRainbowMix = $0 }),
+                SettingSpec(id: "kGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.beetleGain ?? 0 },
+                            set: { [weak self] in self?.beetleGain = $0 }),
             ]
         default:
             return []
@@ -368,6 +387,23 @@ final class AppModel {
             return
         }
 
+        do {
+            // Beetle: green film band + view-swept rainbow bands, both LUTs reused.
+            var beetle = try await ShaderGraphMaterial(
+                named: "/Root/BeetleMaterial",
+                from: "Materials/BeetleMaterial.usda",
+                in: opticsContentBundle
+            )
+            try beetle.setParameter(name: "FilmLUT", value: .textureResource(morphoTexture.resource))
+            try beetle.setParameter(name: "RainbowLUT", value: .textureResource(gratingTexture.resource))
+            beetle.faceCulling = .none
+            self.beetleMaterial = beetle
+            pushBeetleParameters()
+        } catch {
+            statusMessage = "beetle err: \(error.localizedDescription)"
+            return
+        }
+
         statusMessage = "Ready"
     }
 
@@ -392,6 +428,7 @@ final class AppModel {
         case .birefringence: return "BirefrRuler"
         case .speckle: return "SpeckleSphere"
         case .morpho: return "MorphoWing"
+        case .beetle: return "BeetleShell"
         default: return "Placeholder"
         }
     }
@@ -407,7 +444,8 @@ final class AppModel {
 
         // Remove entities that belong to a different effect.
         let knownNames = ["Bubble", "CompactDisc", "NacreSphere", "OpalSphere",
-                          "BirefrRuler", "SpeckleSphere", "MorphoWing", "Placeholder"]
+                          "BirefrRuler", "SpeckleSphere", "MorphoWing", "BeetleShell",
+                          "Placeholder"]
         for name in knownNames where name != keep {
             root.findEntity(named: name)?.removeFromParent()
         }
@@ -495,6 +533,22 @@ final class AppModel {
                 wing.name = keep
                 wing.position = SIMD3(0, -0.02, -0.02)
                 root.addChild(wing)
+            }
+
+        case .beetle:
+            guard let beetle = beetleMaterial else { return }
+            if let shell = root.findEntity(named: keep) {
+                assign(beetle, to: shell)
+            } else {
+                let shell = ModelEntity(
+                    mesh: .generateSphere(radius: 0.12),
+                    materials: [beetle]
+                )
+                // Elongated elytra silhouette
+                shell.scale = SIMD3(1.15, 0.8, 1.5)
+                shell.name = keep
+                shell.position = SIMD3(0, -0.02, 0)
+                root.addChild(shell)
             }
 
         case .grating:
@@ -637,6 +691,15 @@ final class AppModel {
         setParam(&morpho, "NoiseAmount", .float(morphoNoiseAmount))
         setParam(&morpho, "Gain", .float(morphoGain))
         morphoMaterial = morpho
+        materialRevision += 1
+    }
+
+    private func pushBeetleParameters() {
+        guard var beetle = beetleMaterial else { return }
+        setParam(&beetle, "GreenBand", .float(beetleGreenBand))
+        setParam(&beetle, "RainbowMix", .float(beetleRainbowMix))
+        setParam(&beetle, "Gain", .float(beetleGain))
+        beetleMaterial = beetle
         materialRevision += 1
     }
 
