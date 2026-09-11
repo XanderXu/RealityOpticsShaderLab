@@ -30,53 +30,18 @@ def Xform "Root"
             token outputs:surface
         }
 
-        def Shader "Normal"
-        {
-            uniform token info:id = "ND_normal_vector3"
-            float3 outputs:out
-        }
-
-        def Shader "Up"
-        {
-            uniform token info:id = "ND_constant_vector3"
-            float3 inputs:value = (0, 1, 0)
-            float3 outputs:out
-        }
-
-        def Shader "kDot"
-        {
-            uniform token info:id = "ND_dotproduct_vector3"
-            float3 inputs:in1.connect = </Root/OpalMaterial/Normal.outputs:out>
-            float3 inputs:in2.connect = </Root/OpalMaterial/Up.outputs:out>
-            float outputs:out
-        }
-
-        def Shader "kUp"
-        {
-            uniform token info:id = "ND_multiply_vector3FA"
-            float3 inputs:in1.connect = </Root/OpalMaterial/Up.outputs:out>
-            float inputs:in2.connect = </Root/OpalMaterial/kDot.outputs:out>
-            float3 outputs:out
-        }
-
-        def Shader "RadialV"
-        {
-            uniform token info:id = "ND_subtract_vector3"
-            float3 inputs:in1.connect = </Root/OpalMaterial/Normal.outputs:out>
-            float3 inputs:in2.connect = </Root/OpalMaterial/kUp.outputs:out>
-            float3 outputs:out
-        }
-
         def Shader "Radial"
         {
-            uniform token info:id = "ND_normalize_vector3"
-            float3 inputs:in.connect = </Root/OpalMaterial/RadialV.outputs:out>
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/OpalMaterial/GrooveAxis.outputs:out>
+            float inputs:in2.connect = </Root/OpalMaterial/RadialLength.outputs:out>
             float3 outputs:out
         }
 
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/OpalMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
@@ -206,6 +171,8 @@ def Xform "Root"
             color3f inputs:default = (0, 0, 0)
             asset inputs:file.connect = </Root/OpalMaterial.inputs:OpalLUT>
             float2 inputs:texcoord.connect = </Root/OpalMaterial/LutUV.outputs:out>
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
             color3f outputs:out
         }
 
@@ -217,51 +184,66 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
+        def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/OpalMaterial/GainMul.outputs:out>
-            float inputs:in2.connect = </Root/OpalMaterial.inputs:Intensity>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/OpalMaterial/GainMul.outputs:out>
+            float inputs:mix.connect = </Root/OpalMaterial.inputs:Intensity>
             color3f outputs:out
         }
 
-        def Shader "OneMinusI"
+        def Shader "ViewDirSource"
         {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/OpalMaterial.inputs:Intensity>
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/OpalMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "GrooveAxis"
+        {
+            uniform token info:id = "ND_bitangent_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "RadialLength2"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/OpalMaterial/GrooveAxis.outputs:out>
+            float3 inputs:in2.connect = </Root/OpalMaterial/GrooveAxis.outputs:out>
             float outputs:out
         }
 
-        def Shader "GrayC"
+        def Shader "RadialSafeLength2"
         {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/OpalMaterial/RadialLength2.outputs:out>
+            float inputs:in2 = 1e-08
+            float outputs:out
         }
 
-        def Shader "GrayTerm"
+        def Shader "RadialLength"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/OpalMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/OpalMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
-        }
-
-        def Shader "IntensityBlend"
-        {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/OpalMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/OpalMaterial/GrayTerm.outputs:out>
-            color3f outputs:out
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/OpalMaterial/RadialSafeLength2.outputs:out>
+            float outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/OpalMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/OpalMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

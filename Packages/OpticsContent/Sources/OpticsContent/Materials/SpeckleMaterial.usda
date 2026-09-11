@@ -28,95 +28,64 @@ def Xform "Root"
             token outputs:surface
         }
 
-        def Shader "Texcoord"
-        {
-            uniform token info:id = "ND_texcoord_vector2"
-            float2 outputs:out
-        }
-
-        def Shader "SepUV"
-        {
-            uniform token info:id = "ND_separate2_vector2"
-            float2 inputs:in.connect = </Root/SpeckleMaterial/Texcoord.outputs:out>
-            float outputs:outx
-            float outputs:outy
-        }
-
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/SpeckleMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
-        def Shader "SepView"
+        def Shader "Position"
         {
-            uniform token info:id = "ND_separate3_vector3"
-            float3 inputs:in.connect = </Root/SpeckleMaterial/ViewDir.outputs:out>
-            float outputs:outx
-            float outputs:outy
-            float outputs:outz
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
         }
 
-        def Shader "FlowX"
+        def Shader "PositionUnit"
         {
-            uniform token info:id = "ND_multiply_float"
-            float inputs:in1.connect = </Root/SpeckleMaterial/SepView.outputs:outx>
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SpeckleMaterial/Position.outputs:out>
+            float inputs:in2 = 0.22
+            float3 outputs:out
+        }
+
+        def Shader "ViewFlow"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/SpeckleMaterial/ViewDir.outputs:out>
             float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Flow>
-            float outputs:out
+            float3 outputs:out
         }
 
-        def Shader "FlowY"
+        def Shader "FlowPosition"
         {
-            uniform token info:id = "ND_multiply_float"
-            float inputs:in1.connect = </Root/SpeckleMaterial/SepView.outputs:outy>
-            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Flow>
-            float outputs:out
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/SpeckleMaterial/PositionUnit.outputs:out>
+            float3 inputs:in2.connect = </Root/SpeckleMaterial/ViewFlow.outputs:out>
+            float3 outputs:out
         }
 
-        def Shader "UVx"
+        def Shader "GrainPosition"
         {
-            uniform token info:id = "ND_add_float"
-            float inputs:in1.connect = </Root/SpeckleMaterial/SepUV.outputs:outx>
-            float inputs:in2.connect = </Root/SpeckleMaterial/FlowX.outputs:out>
-            float outputs:out
-        }
-
-        def Shader "UVy"
-        {
-            uniform token info:id = "ND_add_float"
-            float inputs:in1.connect = </Root/SpeckleMaterial/SepUV.outputs:outy>
-            float inputs:in2.connect = </Root/SpeckleMaterial/FlowY.outputs:out>
-            float outputs:out
-        }
-
-        def Shader "FlowUV"
-        {
-            uniform token info:id = "ND_combine2_vector2"
-            float inputs:in1.connect = </Root/SpeckleMaterial/UVx.outputs:out>
-            float inputs:in2.connect = </Root/SpeckleMaterial/UVy.outputs:out>
-            float2 outputs:out
-        }
-
-        def Shader "CellUV"
-        {
-            uniform token info:id = "ND_multiply_vector2FA"
-            float2 inputs:in1.connect = </Root/SpeckleMaterial/FlowUV.outputs:out>
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/SpeckleMaterial/FlowPosition.outputs:out>
             float inputs:in2.connect = </Root/SpeckleMaterial.inputs:SpeckScale>
-            float2 outputs:out
+            float3 outputs:out
         }
 
         def Shader "GrainRand"
         {
-            uniform token info:id = "ND_cellnoise2d_float"
-            float2 inputs:texcoord.connect = </Root/SpeckleMaterial/CellUV.outputs:out>
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/SpeckleMaterial/GrainPosition.outputs:out>
             float outputs:out
         }
 
         def Shader "High"
         {
-            uniform token info:id = "ND_add_float"
+            uniform token info:id = "ND_min_float"
             float inputs:in1.connect = </Root/SpeckleMaterial.inputs:Threshold>
-            float inputs:in2 = 0.05
+            float inputs:in2 = 0.95
             float outputs:out
         }
 
@@ -125,7 +94,7 @@ def Xform "Root"
             uniform token info:id = "ND_smoothstep_float"
             float inputs:in.connect = </Root/SpeckleMaterial/GrainRand.outputs:out>
             float inputs:low.connect = </Root/SpeckleMaterial.inputs:Threshold>
-            float inputs:high.connect = </Root/SpeckleMaterial/High.outputs:out>
+            float inputs:high.connect = </Root/SpeckleMaterial/ThresholdHigh.outputs:out>
             float outputs:out
         }
 
@@ -152,51 +121,44 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
-        {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
-            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Intensity>
-            color3f outputs:out
-        }
-
-        def Shader "OneMinusI"
-        {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Intensity>
-            float outputs:out
-        }
-
-        def Shader "GrayC"
-        {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
-        }
-
-        def Shader "GrayTerm"
-        {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/SpeckleMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/SpeckleMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/SpeckleMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/SpeckleMaterial/GrayTerm.outputs:out>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
+            float inputs:mix.connect = </Root/SpeckleMaterial.inputs:Intensity>
             color3f outputs:out
+        }
+
+        def Shader "ViewDirSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "ThresholdHigh"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial/High.outputs:out>
+            float inputs:in2 = 0.05
+            float outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/SpeckleMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/SpeckleMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

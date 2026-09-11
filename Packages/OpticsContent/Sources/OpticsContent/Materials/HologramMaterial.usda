@@ -43,37 +43,17 @@ def Xform "Root"
             float outputs:outy
         }
 
-        def Shader "Normal"
-        {
-            uniform token info:id = "ND_normal_vector3"
-            float3 outputs:out
-        }
-
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
-            float3 outputs:out
-        }
-
-        def Shader "Up"
-        {
-            uniform token info:id = "ND_constant_vector3"
-            float3 inputs:value = (0, 1, 0)
-            float3 outputs:out
-        }
-
-        def Shader "TanV"
-        {
-            uniform token info:id = "ND_crossproduct_vector3"
-            float3 inputs:in1.connect = </Root/HologramMaterial/Up.outputs:out>
-            float3 inputs:in2.connect = </Root/HologramMaterial/Normal.outputs:out>
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/HologramMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
         def Shader "Tangent"
         {
-            uniform token info:id = "ND_normalize_vector3"
-            float3 inputs:in.connect = </Root/HologramMaterial/TanV.outputs:out>
+            uniform token info:id = "ND_tangent_vector3"
+            string inputs:space = "world"
             float3 outputs:out
         }
 
@@ -101,18 +81,11 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "One"
-        {
-            uniform token info:id = "ND_constant_float"
-            float inputs:value = 1
-            float outputs:out
-        }
-
         def Shader "RowFrac"
         {
-            uniform token info:id = "ND_modulo_float"
+            uniform token info:id = "ND_subtract_float"
             float inputs:in1.connect = </Root/HologramMaterial/ScaledY.outputs:out>
-            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/RowFracFloor.outputs:out>
             float outputs:out
         }
 
@@ -172,9 +145,9 @@ def Xform "Root"
 
         def Shader "URow"
         {
-            uniform token info:id = "ND_modulo_float"
+            uniform token info:id = "ND_subtract_float"
             float inputs:in1.connect = </Root/HologramMaterial/UPlusRow.outputs:out>
-            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/URowFloor.outputs:out>
             float outputs:out
         }
 
@@ -204,9 +177,9 @@ def Xform "Root"
 
         def Shader "GoldenFrac"
         {
-            uniform token info:id = "ND_modulo_float"
+            uniform token info:id = "ND_subtract_float"
             float inputs:in1.connect = </Root/HologramMaterial/RowGolden.outputs:out>
-            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/GoldenFracFloor.outputs:out>
             float outputs:out
         }
 
@@ -263,6 +236,8 @@ def Xform "Root"
             color3f inputs:default = (0, 0, 0)
             asset inputs:file.connect = </Root/HologramMaterial.inputs:HoloLUT>
             float2 inputs:texcoord.connect = </Root/HologramMaterial/LutUV.outputs:out>
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
             color3f outputs:out
         }
 
@@ -407,51 +382,57 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
+        def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/HologramMaterial/LitColor.outputs:out>
-            float inputs:in2.connect = </Root/HologramMaterial.inputs:Intensity>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/HologramMaterial/LitColor.outputs:out>
+            float inputs:mix.connect = </Root/HologramMaterial.inputs:Intensity>
             color3f outputs:out
         }
 
-        def Shader "OneMinusI"
+        def Shader "ViewDirSource"
         {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/HologramMaterial.inputs:Intensity>
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/HologramMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "RowFracFloor"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/HologramMaterial/ScaledY.outputs:out>
             float outputs:out
         }
 
-        def Shader "GrayC"
+        def Shader "URowFloor"
         {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/HologramMaterial/UPlusRow.outputs:out>
+            float outputs:out
         }
 
-        def Shader "GrayTerm"
+        def Shader "GoldenFracFloor"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/HologramMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/HologramMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
-        }
-
-        def Shader "IntensityBlend"
-        {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/HologramMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/HologramMaterial/GrayTerm.outputs:out>
-            color3f outputs:out
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/HologramMaterial/RowGolden.outputs:out>
+            float outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/HologramMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/HologramMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

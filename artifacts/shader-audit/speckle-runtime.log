@@ -1,0 +1,5 @@
+Optics build: 16/16 materials, 29.50645175 seconds
+OPTICS_AUDIT DEFAULT speckle 5 parameters
+OPTICS_AUDIT MIN speckle 5 parameters
+OPTICS_AUDIT MAX speckle 5 parameters
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

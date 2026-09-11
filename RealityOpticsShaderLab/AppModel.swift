@@ -11,6 +11,17 @@ struct SettingSpec: Identifiable {
     let range: ClosedRange<Float>
     let get: () -> Float
     let set: (Float) -> Void
+
+    init(id: String, label: String, range: ClosedRange<Float>, get: @escaping () -> Float, set: @escaping (Float) -> Void) {
+        self.id = id
+        self.label = label
+        self.range = range
+        self.get = get
+        self.set = { value in
+            guard value.isFinite else { return }
+            set(min(max(value, range.lowerBound), range.upperBound))
+        }
+    }
 }
 
 @MainActor
@@ -20,6 +31,11 @@ final class AppModel {
     var selectedEffect: OpticsEffect = .thinFilm
 
     init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1" {
+            isAnimating = false
+        }
+        #endif
         // Launcher override for automated verification:
         // SIMCTL_CHILD_OPTICS_EFFECT=nacre xcrun simctl launch ...
         if let raw = ProcessInfo.processInfo.environment["OPTICS_EFFECT"],
@@ -28,7 +44,7 @@ final class AppModel {
         }
         // SIMCTL_CHILD_OPTICS_INTENSITY=0.2 — applied once materials exist.
         if let raw = ProcessInfo.processInfo.environment["OPTICS_INTENSITY"],
-           let value = Float(raw) {
+           let value = Float(raw), value.isFinite {
             intensities[selectedEffect] = min(max(value, 0), 2)
         }
     }
@@ -81,7 +97,7 @@ final class AppModel {
 
     // MARK: - Morpho parameters
 
-    // 216nm chitin => first-order reflection peak at 450nm blue at normal incidence
+    // A 216 nm chitin film has a visible reflection maximum at 4nd/3 ≈ 449 nm.
     var morphoThicknessBias: Float = 0.18 { didSet { pushMorphoParameters() } }
     var morphoNoiseAmount: Float = 0.06 { didSet { pushMorphoParameters() } }
     var morphoGain: Float = 1.8 { didSet { pushMorphoParameters() } }
@@ -163,7 +179,8 @@ final class AppModel {
     }
 
     func setIntensity(_ value: Float, for effect: OpticsEffect) {
-        intensities[effect] = value
+        guard value.isFinite else { return }
+        intensities[effect] = min(max(value, 0), 2)
         pushIntensity(for: effect)
     }
 
@@ -190,6 +207,7 @@ final class AppModel {
     private(set) var nacreLUT: LUTTexture?
     private(set) var birefringenceLUT: LUTTexture?
     private(set) var morphoLUT: LUTTexture?
+    private(set) var newtonLUT: LUTTexture?
     private(set) var statusMessage = "Booting optics…"
 
     /// Bumped whenever a material is (re)created or re-parameterized.
@@ -202,6 +220,9 @@ final class AppModel {
     weak var sceneRoot: Entity?
 
     private var rebuildTask: Task<Void, Never>?
+    private var isBuilding = false
+    private var hasBuilt = false
+    private var parameterErrors: [String] = []
 
     func report(error: String) {
         statusMessage = error
@@ -240,7 +261,7 @@ final class AppModel {
                 SettingSpec(id: "opacity", label: "Opacity", range: 0.3...1,
                             get: { [weak self] in self?.filmOpacity ?? 0 },
                             set: { [weak self] in self?.filmOpacity = $0 }),
-                SettingSpec(id: "ior", label: "Film IOR (rebuilds LUT)", range: 1.2...1.45,
+                SettingSpec(id: "ior", label: "Film IOR", range: 1.2...1.45,
                             get: { [weak self] in self?.soapIOR ?? 0 },
                             set: { [weak self] in self?.soapIOR = $0 }),
             ]
@@ -315,7 +336,7 @@ final class AppModel {
             ]
         case .morpho:
             return [
-                SettingSpec(id: "mBias", label: "Thickness (blue band)", range: 0.2...0.45,
+                SettingSpec(id: "mBias", label: "Thickness (blue band)", range: 0.12...0.45,
                             get: { [weak self] in self?.morphoThicknessBias ?? 0 },
                             set: { [weak self] in self?.morphoThicknessBias = $0 }),
                 SettingSpec(id: "mNoise", label: "Ridge noise", range: 0...0.35,
@@ -450,7 +471,7 @@ final class AppModel {
                 SettingSpec(id: "sShift", label: "L/R branch shift", range: 0...0.3,
                             get: { [weak self] in self?.scarabBranchShift ?? 0 },
                             set: { [weak self] in self?.scarabBranchShift = $0 }),
-                SettingSpec(id: "sAnalyzer", label: "Quarter-wave analyzer", range: 0...1,
+                SettingSpec(id: "sAnalyzer", label: "Analyzer blend (R → L)", range: 0...1,
                             get: { [weak self] in self?.scarabAnalyzer ?? 0 },
                             set: { [weak self] in self?.scarabAnalyzer = $0 }),
                 SettingSpec(id: "sGain", label: "Gain", range: 0.5...3,
@@ -465,296 +486,159 @@ final class AppModel {
     // MARK: - Build
 
     func buildAll() async throws {
+        guard !isBuilding && !hasBuilt else { return }
+        isBuilding = true
+        defer { isBuilding = false }
         statusMessage = "Integrating spectra…"
+        parameterErrors.removeAll()
+        let initialIOR = soapIOR
+        let started = ContinuousClock.now
 
-        let filmBytes = try await Task.detached(priority: .userInitiated) {
-            LUTFactory.makeFilmLUT(ior: 1.333)
-        }.value
-        let gratingBytes = try await Task.detached(priority: .userInitiated) {
-            LUTFactory.makeGratingLUT()
-        }.value
-        let nacreBytes = try await Task.detached(priority: .userInitiated) {
-            LUTFactory.makeNacreLUT()
-        }.value
-        let birefrBytes = try await Task.detached(priority: .userInitiated) {
-            LUTFactory.makeBirefringenceLUT()
-        }.value
-        let morphoBytes = try await Task.detached(priority: .userInitiated) {
-            LUTFactory.makeMorphoLUT()
-        }.value
-
+        // Independent CPU LUTs can be integrated concurrently. The previous
+        // sequence awaited each one before starting the next.
+        let filmTask = Task.detached(priority: .userInitiated) { LUTFactory.makeFilmLUT(ior: initialIOR) }
+        let gratingTask = Task.detached(priority: .userInitiated) { LUTFactory.makeGratingLUT() }
+        let nacreTask = Task.detached(priority: .userInitiated) { LUTFactory.makeNacreLUT() }
+        let birefrTask = Task.detached(priority: .userInitiated) { LUTFactory.makeBirefringenceLUT() }
+        let morphoTask = Task.detached(priority: .userInitiated) { LUTFactory.makeMorphoLUT() }
+        let newtonTask = Task.detached(priority: .userInitiated) { LUTFactory.makeNewtonLUT() }
+        defer {
+            filmTask.cancel(); gratingTask.cancel(); nacreTask.cancel()
+            birefrTask.cancel(); morphoTask.cancel(); newtonTask.cancel()
+        }
         let filmTexture = try LUTTexture(width: 256, height: 256)
-        filmTexture.upload(halves: filmBytes)
+        try filmTexture.upload(halves: await filmTask.value)
         let gratingTexture = try LUTTexture(width: 256, height: 128)
-        gratingTexture.upload(halves: gratingBytes)
+        try gratingTexture.upload(halves: await gratingTask.value)
         let nacreTexture = try LUTTexture(width: 256, height: 256)
-        nacreTexture.upload(halves: nacreBytes)
-        let birefrTexture = try LUTTexture(width: 512, height: 8)
-        birefrTexture.upload(halves: birefrBytes)
+        try nacreTexture.upload(halves: await nacreTask.value)
+        let birefrTexture = try LUTTexture(width: 1024, height: 1)
+        try birefrTexture.upload(halves: await birefrTask.value)
         let morphoTexture = try LUTTexture(width: 256, height: 256)
-        morphoTexture.upload(halves: morphoBytes)
-        self.filmLUT = filmTexture
-        self.gratingLUT = gratingTexture
-        self.nacreLUT = nacreTexture
-        self.birefringenceLUT = birefrTexture
-        self.morphoLUT = morphoTexture
+        try morphoTexture.upload(halves: await morphoTask.value)
+        let newtonTexture = try LUTTexture(width: 256, height: 512)
+        try newtonTexture.upload(halves: await newtonTask.value)
+        try Task.checkCancellation()
+        filmLUT = filmTexture
+        gratingLUT = gratingTexture
+        nacreLUT = nacreTexture
+        birefringenceLUT = birefrTexture
+        morphoLUT = morphoTexture
+        newtonLUT = newtonTexture
 
-        do {
-            var film = try await ShaderGraphMaterial(
-                named: "/Root/IridescentFilmMaterial",
-                from: "Materials/IridescentFilmMaterial.usda",
-                in: opticsContentBundle
-            )
-            try film.setParameter(name: "FilmLUT", value: .textureResource(filmTexture.resource))
-            // Thin shell: render both faces so the bubble interior shows.
-            film.faceCulling = .none
-            self.filmMaterial = film
-            pushFilmParameters()
-        } catch {
-            statusMessage = "film err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            var grating = try await ShaderGraphMaterial(
-                named: "/Root/DiffractionGratingMaterial",
-                from: "Materials/DiffractionGratingMaterial.usda",
-                in: opticsContentBundle
-            )
-            try grating.setParameter(name: "GratingLUT", value: .textureResource(gratingTexture.resource))
-            grating.faceCulling = .none
-            self.gratingMaterial = grating
-            pushGratingParameters()
-        } catch {
-            statusMessage = "grating err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let nacre = try await loadLutMaterial(
-                prim: "/Root/NacreMaterial",
-                file: "Materials/NacreMaterial.usda",
-                lutName: "NacreLUT",
-                texture: nacreTexture.resource
-            )
-            self.nacreMaterial = nacre
-            pushNacreParameters()
-        } catch {
-            statusMessage = "nacre err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // Opal reuses the grating LUT data; its look comes from the
-            // Voronoi jitter applied to the lookup coordinates in-graph.
-            let opal = try await loadLutMaterial(
-                prim: "/Root/OpalMaterial",
-                file: "Materials/OpalMaterial.usda",
-                lutName: "OpalLUT",
-                texture: gratingTexture.resource
-            )
-            self.opalMaterial = opal
-            pushOpalParameters()
-        } catch {
-            statusMessage = "opal err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let birefr = try await loadLutMaterial(
-                prim: "/Root/BirefringenceMaterial",
-                file: "Materials/BirefringenceMaterial.usda",
-                lutName: "PhaseLUT",
-                texture: birefrTexture.resource
-            )
-            self.birefringenceMaterial = birefr
-            pushBirefringenceParameters()
-        } catch {
-            statusMessage = "birefr err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // Speckle is fully procedural in-graph (cell hash on view-shifted
-            // UVs); no LUT needed.
-            var speckle = try await ShaderGraphMaterial(
-                named: "/Root/SpeckleMaterial",
-                from: "Materials/SpeckleMaterial.usda",
-                in: opticsContentBundle
-            )
-            speckle.faceCulling = .none
-            self.speckleMaterial = speckle
-            pushSpeckleParameters()
-        } catch {
-            statusMessage = "speckle err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let morpho = try await loadLutMaterial(
-                prim: "/Root/MorphoMaterial",
-                file: "Materials/MorphoMaterial.usda",
-                lutName: "MorphoLUT",
-                texture: morphoTexture.resource
-            )
-            self.morphoMaterial = morpho
-            pushMorphoParameters()
-        } catch {
-            statusMessage = "morpho err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // Beetle: green film band + view-swept rainbow bands, both LUTs reused.
-            var beetle = try await ShaderGraphMaterial(
-                named: "/Root/BeetleMaterial",
-                from: "Materials/BeetleMaterial.usda",
-                in: opticsContentBundle
-            )
-            try beetle.setParameter(name: "FilmLUT", value: .textureResource(morphoTexture.resource))
-            try beetle.setParameter(name: "RainbowLUT", value: .textureResource(gratingTexture.resource))
-            beetle.faceCulling = .none
-            self.beetleMaterial = beetle
-            pushBeetleParameters()
-        } catch {
-            statusMessage = "beetle err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // Feather: chitin film (blue-green band) + barbule stripes +
-            // static glitter sparkles, all composed in-graph.
-            var feather = try await ShaderGraphMaterial(
-                named: "/Root/FeatherMaterial",
-                from: "Materials/FeatherMaterial.usda",
-                in: opticsContentBundle
-            )
-            try feather.setParameter(name: "FilmLUT", value: .textureResource(morphoTexture.resource))
-            feather.faceCulling = .none
-            self.featherMaterial = feather
-            pushFeatherParameters()
-        } catch {
-            statusMessage = "feather err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let holo = try await loadLutMaterial(
-                prim: "/Root/HologramMaterial",
-                file: "Materials/HologramMaterial.usda",
-                lutName: "HoloLUT",
-                texture: gratingTexture.resource
-            )
-            self.hologramMaterial = holo
-            pushHologramParameters()
-        } catch {
-            statusMessage = "hologram err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // LCD is fully procedural (worley domains + cos^4 view falloff).
-            var lcd = try await ShaderGraphMaterial(
-                named: "/Root/LCDMaterial",
-                from: "Materials/LCDMaterial.usda",
-                in: opticsContentBundle
-            )
-            lcd.faceCulling = .none
-            self.lcdMaterial = lcd
-            pushLCDParameters()
-        } catch {
-            statusMessage = "lcd err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            // Newton's rings: film LUT with the thickness axis fed by r^2.
-            let newton = try await loadLutMaterial(
-                prim: "/Root/NewtonMaterial",
-                file: "Materials/NewtonMaterial.usda",
-                lutName: "NewtonLUT",
-                texture: filmTexture.resource
-            )
-            self.newtonMaterial = newton
-            pushNewtonParameters()
-        } catch {
-            statusMessage = "newton err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let pearl = try await loadLutMaterial(
-                prim: "/Root/PearlMaterial",
-                file: "Materials/PearlMaterial.usda",
-                lutName: "PearlLUT",
-                texture: nacreTexture.resource
-            )
-            self.pearlMaterial = pearl
-            pushPearlParameters()
-        } catch {
-            statusMessage = "pearl err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let dragonfly = try await loadLutMaterial(
-                prim: "/Root/DragonflyMaterial",
-                file: "Materials/DragonflyMaterial.usda",
-                lutName: "FilmLUT",
-                texture: morphoTexture.resource
-            )
-            self.dragonflyMaterial = dragonfly
-            pushDragonflyParameters()
-        } catch {
-            statusMessage = "dragonfly err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let chameleon = try await loadLutMaterial(
-                prim: "/Root/ChameleonMaterial",
-                file: "Materials/ChameleonMaterial.usda",
-                lutName: "ChromaLUT",
-                texture: gratingTexture.resource
-            )
-            self.chameleonMaterial = chameleon
-            pushChameleonParameters()
-        } catch {
-            statusMessage = "chameleon err: \(error.localizedDescription)"
-            return
-        }
-
-        do {
-            let scarab = try await loadLutMaterial(
-                prim: "/Root/ScarabMaterial",
-                file: "Materials/ScarabMaterial.usda",
-                lutName: "ScarabLUT",
-                texture: morphoTexture.resource
-            )
-            self.scarabMaterial = scarab
-            pushScarabParameters()
-        } catch {
-            statusMessage = "scarab err: \(error.localizedDescription)"
-            return
-        }
-
-        // Apply any stored (env-provided) intensity now that materials exist.
+        let textures: [OpticsEffect: [String: TextureResource]] = [
+            .thinFilm: ["FilmLUT": filmTexture.resource],
+            .grating: ["GratingLUT": gratingTexture.resource],
+            .nacre: ["NacreLUT": nacreTexture.resource],
+            .opal: ["OpalLUT": gratingTexture.resource],
+            .birefringence: ["PhaseLUT": birefrTexture.resource],
+            .morpho: ["MorphoLUT": morphoTexture.resource],
+            .beetle: ["FilmLUT": morphoTexture.resource, "RainbowLUT": gratingTexture.resource],
+            .feather: ["FilmLUT": morphoTexture.resource],
+            .hologram: ["HoloLUT": gratingTexture.resource],
+            .newton: ["NewtonLUT": newtonTexture.resource],
+            .pearl: ["PearlLUT": nacreTexture.resource],
+            .dragonfly: ["FilmLUT": morphoTexture.resource],
+            .chameleon: ["ChromaLUT": gratingTexture.resource],
+            .scarab: ["ScarabLUT": morphoTexture.resource],
+        ]
+        var failures: [String] = []
         for effect in OpticsEffect.allCases {
-            pushIntensity(for: effect)
+            try Task.checkCancellation()
+            do {
+                let name = effect.materialName
+                var material = try await ShaderGraphMaterial(
+                    named: "/Root/\(name)", from: "Materials/\(name).usda", in: opticsContentBundle
+                )
+                for (name, texture) in textures[effect, default: [:]] {
+                    try material.setParameter(name: name, value: .textureResource(texture))
+                }
+                material.faceCulling = .none
+                store(material, for: effect)
+                pushParameters(for: effect)
+                pushIntensity(for: effect)
+            } catch {
+                failures.append("\(effect.menuTitle): \(error.localizedDescription)")
+            }
         }
-
-        statusMessage = "Ready"
+        failures.append(contentsOf: parameterErrors)
+        hasBuilt = failures.isEmpty
+        statusMessage = hasBuilt ? "Ready" : failures.joined(separator: "\n")
+        let loaded = OpticsEffect.allCases.filter { material(for: $0) != nil }.count
+        print("Optics build: \(loaded)/\(OpticsEffect.allCases.count) materials, \(started.duration(to: .now))")
+        // Sliders can change during startup, before filmLUT exists.
+        if hasBuilt && soapIOR != initialIOR { rebuildFilmLUT() }
     }
 
-    /// Common loader for the LUT-sampling unlit materials.
-    private func loadLutMaterial(
-        prim: String, file: String, lutName: String, texture: TextureResource
-    ) async throws -> ShaderGraphMaterial {
-        var material = try await ShaderGraphMaterial(named: prim, from: file, in: opticsContentBundle)
-        try material.setParameter(name: lutName, value: .textureResource(texture))
-        material.faceCulling = .none
-        return material
+    private func pushParameters(for effect: OpticsEffect) {
+        switch effect {
+        case .thinFilm: pushFilmParameters()
+        case .grating: pushGratingParameters()
+        case .nacre: pushNacreParameters()
+        case .opal: pushOpalParameters()
+        case .birefringence: pushBirefringenceParameters()
+        case .speckle: pushSpeckleParameters()
+        case .morpho: pushMorphoParameters()
+        case .beetle: pushBeetleParameters()
+        case .feather: pushFeatherParameters()
+        case .hologram: pushHologramParameters()
+        case .lcd: pushLCDParameters()
+        case .newton: pushNewtonParameters()
+        case .pearl: pushPearlParameters()
+        case .dragonfly: pushDragonflyParameters()
+        case .chameleon: pushChameleonParameters()
+        case .scarab: pushScarabParameters()
+        }
     }
+
+    #if DEBUG
+    /// Opt-in development smoke test. Exercises real material loading, binding,
+    /// scene selection, and minimum/maximum controls without simulated gestures.
+    /// The external capture script takes a screenshot at each DEFAULT marker.
+    func runShaderAuditIfRequested() async throws {
+        guard ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1" else { return }
+        guard hasBuilt else {
+            throw NSError(domain: "OpticsAudit", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: statusMessage])
+        }
+        let originalEffect = selectedEffect
+        let originalAnimation = isAnimating
+        defer {
+            selectedEffect = originalEffect
+            isAnimating = originalAnimation
+        }
+        isAnimating = false
+        let effects = ProcessInfo.processInfo.environment["OPTICS_AUDIT_ONLY_SELECTED"] == "1"
+            ? [originalEffect] : OpticsEffect.allCases
+        for effect in effects {
+            selectedEffect = effect
+            let specs = settingsFor(effect)
+            let saved = specs.map { $0.get() }
+            defer { for (spec, value) in zip(specs, saved) { spec.set(value) } }
+            for phase in ["DEFAULT", "MIN", "MAX"] {
+                if phase != "DEFAULT" {
+                    for spec in specs {
+                        spec.set(phase == "MIN" ? spec.range.lowerBound : spec.range.upperBound)
+                    }
+                    await rebuildTask?.value
+                }
+                // Allow the RealityView update and GPU shader pipeline to run.
+                try await Task.sleep(for: .seconds(1))
+                guard sceneRoot?.findEntity(named: entityName(for: effect)) != nil,
+                      material(for: effect) != nil, parameterErrors.isEmpty else {
+                    throw NSError(domain: "OpticsAudit", code: 2,
+                                  userInfo: [NSLocalizedDescriptionKey: "Scene/binding failed: \(effect.rawValue)"])
+                }
+                print("OPTICS_AUDIT \(phase) \(effect.rawValue) \(specs.count) parameters")
+                fflush(stdout)
+                if phase == "DEFAULT" { try await Task.sleep(for: .seconds(3)) }
+            }
+        }
+        await rebuildTask?.value
+        print("OPTICS_AUDIT PASS: \(effects.count) materials, default/min/max scenes, no binding failures")
+        fflush(stdout)
+    }
+    #endif
 
     // MARK: - Scene object management
 
@@ -1073,8 +957,12 @@ final class AppModel {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 guard !Task.isCancelled else { return }
-                filmLUT.upload(halves: bytes)
-                self.statusMessage = "Ready"
+                do {
+                    try filmLUT.upload(halves: bytes)
+                    self.statusMessage = "Ready"
+                } catch {
+                    self.report(error: "Film LUT: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -1238,7 +1126,6 @@ final class AppModel {
         setParam(&scarab, "ThicknessBias", .float(scarabThicknessBias))
         setParam(&scarab, "BranchShift", .float(scarabBranchShift))
         setParam(&scarab, "Analyzer", .float(scarabAnalyzer))
-        setParam(&scarab, "HandednessGain", .float(1.5))
         setParam(&scarab, "Gain", .float(scarabGain))
         scarabMaterial = scarab
         materialRevision += 1
@@ -1300,7 +1187,10 @@ final class AppModel {
             try material.setParameter(name: name, value: value)
         } catch {
             // A typo'd parameter name must be visible, not silently ignored.
-            print("RealityOpticsShaderLab: setParameter(\(name)) failed: \(error)")
+            let message = "setParameter(\(name)): \(error.localizedDescription)"
+            parameterErrors.append(message)
+            statusMessage = message
+            print("RealityOpticsShaderLab: \(message)")
         }
     }
 }

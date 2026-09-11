@@ -46,7 +46,7 @@ final class LUTTexture {
     /// RealityKit's in-flight frames on the simulator.
     /// Row order is flipped here: MaterialX samples textures bottom-up while
     /// the byte buffer is written top-down, so V axes read as authored.
-    func upload(halves: [UInt16]) {
+    func upload(halves: [UInt16]) throws {
         precondition(halves.count == width * height * 4)
         var flipped = [UInt16](repeating: 0, count: halves.count)
         let rowLen = width * 4
@@ -60,8 +60,8 @@ final class LUTTexture {
         guard let commandBuffer = commandQueue.makeCommandBuffer(),
               let staging = device.makeBuffer(bytes: flipped, length: byteCount, options: .storageModeShared),
               let blit = commandBuffer.makeBlitCommandEncoder() else {
-            print("RealityOpticsShaderLab: failed to build LUT upload command buffer")
-            return
+            throw NSError(domain: "RealityOpticsShaderLab", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "Could not encode LUT upload"])
         }
         let texture = lowLevelTexture.replace(using: commandBuffer)
         blit.copy(
@@ -78,10 +78,14 @@ final class LUTTexture {
         blit.endEncoding()
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
+        guard commandBuffer.status == .completed else {
+            throw commandBuffer.error ?? NSError(domain: "RealityOpticsShaderLab", code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "GPU LUT upload failed"])
+        }
     }
 }
 
-/// Builds both physics LUTs off the main actor (pure CPU work) and hands bytes back.
+/// Builds physics LUTs off the main actor (pure CPU work) and hands bytes back.
 enum LUTFactory {
 
     nonisolated static func makeFilmLUT(ior: Float) -> [UInt16] {
@@ -98,7 +102,11 @@ enum LUTFactory {
     }
 
     nonisolated static func makeBirefringenceLUT() -> [UInt16] {
-        return LUTBuilder.birefringenceLUT(width: 512)
+        return LUTBuilder.birefringenceLUT(width: 1024)
+    }
+
+    nonisolated static func makeNewtonLUT() -> [UInt16] {
+        LUTBuilder.newtonLUT(width: 256, height: 512)
     }
 
     nonisolated static func makeMorphoLUT() -> [UInt16] {

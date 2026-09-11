@@ -31,13 +31,15 @@ def Xform "Root"
 
         def Shader "Normal"
         {
-            uniform token info:id = "ND_normal_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/FeatherMaterial/NormalSource.outputs:out>
             float3 outputs:out
         }
 
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/FeatherMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
@@ -65,13 +67,6 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "Half"
-        {
-            uniform token info:id = "ND_constant_float"
-            float inputs:value = 0.5
-            float outputs:out
-        }
-
         def Shader "FilmUV"
         {
             uniform token info:id = "ND_combine2_vector2"
@@ -86,6 +81,8 @@ def Xform "Root"
             color3f inputs:default = (0, 0, 0)
             asset inputs:file.connect = </Root/FeatherMaterial.inputs:FilmLUT>
             float2 inputs:texcoord.connect = </Root/FeatherMaterial/FilmUV.outputs:out>
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
             color3f outputs:out
         }
 
@@ -228,51 +225,43 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
-        {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/FeatherMaterial/GainMul.outputs:out>
-            float inputs:in2.connect = </Root/FeatherMaterial.inputs:Intensity>
-            color3f outputs:out
-        }
-
-        def Shader "OneMinusI"
-        {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/FeatherMaterial.inputs:Intensity>
-            float outputs:out
-        }
-
-        def Shader "GrayC"
-        {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
-        }
-
-        def Shader "GrayTerm"
-        {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/FeatherMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/FeatherMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/FeatherMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/FeatherMaterial/GrayTerm.outputs:out>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/FeatherMaterial/GainMul.outputs:out>
+            float inputs:mix.connect = </Root/FeatherMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDirSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/FeatherMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
             color3f outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/FeatherMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/FeatherMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

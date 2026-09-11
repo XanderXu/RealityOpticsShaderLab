@@ -9,5 +9,7 @@ struct RealityOpticsShaderLabApp: App {
             ContentView()
                 .environment(appModel)
         }
+        .defaultSize(width: 1280, height: 820)
+        .windowResizability(.contentMinSize)
     }
 }

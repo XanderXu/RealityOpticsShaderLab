@@ -1,10 +1,9 @@
 import RealityKit
 import simd
 
-/// A slightly conical disc with radial UVs. The outward-tilting normals let the
-/// shader graph recover the radial direction from the normal alone (no position
-/// node needed), and mimic how a real CD's curvature sweeps reflections across
-/// its surface. UV: u = angle/2pi (groove direction), v = normalized radius.
+/// A slightly conical disc. U follows the circular grooves; V increases radially.
+/// The shader uses the world-space UV bitangent as the diffraction axis, so it
+/// follows the disc's rotation. Triangle winding agrees with the upward normals.
 enum DiscMesh {
 
     static func make(
@@ -41,8 +40,8 @@ enum DiscMesh {
                 let b = a + 1
                 let c = a + stride
                 let d = c + 1
-                indices.append(contentsOf: [UInt32(a), UInt32(c), UInt32(b)])
-                indices.append(contentsOf: [UInt32(b), UInt32(c), UInt32(d)])
+                indices.append(contentsOf: [UInt32(a), UInt32(b), UInt32(c)])
+                indices.append(contentsOf: [UInt32(b), UInt32(d), UInt32(c)])
             }
         }
 

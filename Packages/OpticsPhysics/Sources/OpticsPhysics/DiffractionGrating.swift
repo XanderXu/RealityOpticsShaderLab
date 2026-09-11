@@ -39,26 +39,28 @@ public enum DiffractionGrating {
         bandWidthNm: Float = 24,
         into samples: inout [Float]
     ) {
-        for i in 0..<samples.count { samples[i] = 0 }
+        precondition(samples.count == Spectrum.sampleCount)
+        precondition(maxOrder >= 0 && bandWidthNm.isFinite && bandWidthNm > 0)
+        for i in samples.indices { samples[i] = 0 }
+        guard maxOrder > 0 else { return }
         let d = periodNm(linesPerMm: linesPerMm)
-        var weightSum: Float = 0
+        let delta = abs(sinIn - sinOut)
+        let sigma = max(bandWidthNm * 0.4246609, 0.75)
+        let inv2s2 = 1 / (2 * sigma * sigma)
+        // For any nonzero signed angle difference, only one sign of m gives
+        // a positive wavelength. Fold +/- orders together instead of allocating
+        // a temporary spectrum for both. Normalize by ALL modeled orders.
+        var totalWeight: Float = 0
+        for m in 1...maxOrder { totalWeight += 1 / (Float(m) * Float(m)) }
         for m in 1...maxOrder {
-            for sign in [1, -1] {
-                let order = m * sign
-                guard let lambda = wavelength(sinIn: sinIn, sinOut: sinOut, groovePeriodNm: d, order: order) else { continue }
-                let weight = 1.0 / Float(m * m)
-                weightSum += weight
-                let band = Spectrum.bandSamples(nm: lambda, width: bandWidthNm)
-                for i in 0..<samples.count {
-                    samples[i] += weight * band[i]
-                }
+            let lambda = d * delta / Float(m)
+            let weight = 1 / (Float(m) * Float(m) * totalWeight)
+            // Keep Gaussian tails as their centers cross 380/780 nm. Rejecting
+            // a whole band at the boundary caused visible brightness jumps.
+            for i in samples.indices {
+                let dl = Spectrum.wavelength(i) - lambda
+                samples[i] += weight * exp(-dl * dl * inv2s2)
             }
-        }
-        // Average over the visible orders so brightness stays continuous where
-        // additional orders enter/leave the visible wavelength range.
-        if weightSum > 1 {
-            let inv = 1 / weightSum
-            for i in 0..<samples.count { samples[i] *= inv }
         }
     }
 

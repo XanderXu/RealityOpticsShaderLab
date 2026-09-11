@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Catalog of wave-optics effects demoed by the app.
-/// Implemented ones ship a physics LUT + shader graph; the rest are listed
-/// with their planned approach and render placeholder geometry until wired up.
+/// All 16 effects are wired up. Mechanisms distinguish spectral models from
+/// illustrative approximations so the UI does not imply a full physical solver.
 enum OpticsEffect: String, CaseIterable, Identifiable {
     case thinFilm
     case grating
@@ -23,12 +23,21 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var materialName: String {
+        switch self {
+        case .thinFilm: return "IridescentFilmMaterial"
+        case .grating: return "DiffractionGratingMaterial"
+        case .lcd: return "LCDMaterial"
+        default: return rawValue.prefix(1).uppercased() + rawValue.dropFirst() + "Material"
+        }
+    }
+
     var title: String {
         switch self {
         case .thinFilm: return "薄膜干涉 · 肥皂泡（Thin-Film Interference）"
         case .grating: return "衍射光栅 · CD 光盘（Diffraction Grating）"
         case .nacre: return "珍珠母/珠光（Nacre, Pearlescence）"
-        case .opal: return "欧泊/猫眼石（Opal, Play-of-Color）"
+        case .opal: return "欧泊变彩（Opal, Play-of-Color）"
         case .birefringence: return "双折射/光弹性（Birefringence, Photoelasticity）"
         case .speckle: return "激光散斑（Laser Speckle）"
         case .morpho: return "闪蝶翅膀（Morpho Butterfly）"
@@ -39,7 +48,7 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .newton: return "牛顿环/等厚干涉（Newton's Rings）"
         case .pearl: return "正圆珍珠（Cultured Pearl）"
         case .dragonfly: return "蜻蜓翅膀（Dragonfly Wing）"
-        case .chameleon: return "变色龙/乌贼皮肤（Chameleon Chromatophores）"
+        case .chameleon: return "变色龙皮肤（Chameleon Structural Color）"
         case .scarab: return "圆偏振金龟子（Circular-Polarization Scarab）"
         }
     }
@@ -71,13 +80,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         switch self {
         case .thinFilm: return "circle.dashed"
         case .grating: return "opticaldisc"
-        case .nacre: return "seashell"
+        case .nacre: return "circle.lefthalf.filled"
         case .opal: return "diamond"
         case .birefringence: return "ruler"
         case .speckle: return "sparkles"
-        case .morpho: return "butterfly"
+        case .morpho: return "fanblades.fill"
         case .beetle: return "ant"
-        case .feather: return "feather"
+        case .feather: return "leaf.fill"
         case .hologram: return "creditcard"
         case .lcd: return "rectangle.on.rectangle"
         case .newton: return "circle.circle"
@@ -100,13 +109,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .opal:
             return "蛋白石里二氧化硅微球密堆积形成三维光子晶体，闪烁的斑块状变色"
         case .birefringence:
-            return "偏振片下应力塑料和尺子边缘的彩色条纹、肥皂泡受张力时的彩色流动纹"
+            return "正交偏振片下，应力塑料和尺子上的彩色条纹与消光区域"
         case .speckle:
             return "相干光照在粗糙表面上的细密颗粒状明暗图样，随观察者移动而流动"
         case .morpho:
-            return "树状多层纳米结构产生超宽角虹彩——蓝色极亮且几乎全视角可见"
+            return "翅鳞纳米结构产生鲜明蓝色，本演示用等效几丁质薄膜近似"
         case .beetle:
-            return "椭圆偏振虹彩：高饱和金属绿 + 转动时的彩虹条带"
+            return "绿色结构色与转动时的彩虹条带，本演示混合两种光谱查表"
         case .feather:
             return "多层膜 + 各向异性高光 + glitter 的组合结构色"
         case .hologram:
@@ -120,39 +129,39 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .dragonfly:
             return "翅膜超薄薄膜干涉的微弱虹彩 + 深色脉络网格 + 半透明翅膜"
         case .chameleon:
-            return "虹彩细胞（鸟嘌呤纳米晶格晶域）随信号主动变温变色——晶域逐个切换色相"
+            return "虹彩细胞内纳米晶体间距变化可改变结构色，本演示以晶域色彩循环近似"
         case .scarab:
-            return "金龟子鞘翅的螺旋层状结构选择反射左旋圆偏振光，四分之一波片可翻转色支"
+            return "部分金龟子的螺旋层状结构选择反射圆偏振光；此处展示两支颜色的混合示意"
         }
     }
 
-    /// Planned implementation approach (from the optics survey).
+    /// Actual implemented model, including its approximation limits.
     var mechanism: String {
         switch self {
         case .thinFilm:
-            return "已实现：精确 Fresnel 振幅 + Airy 级数光谱积分，烘焙厚度×视角 LUT"
+            return "无吸收、无色散的三介质 Fresnel + Airy 光谱积分；CIE 1931 / D65 转线性 RGB，膜厚按高斯分布平均"
         case .grating:
-            return "已实现：光栅方程 sinθi − sinθo = mλ/d，多阶光谱合成烘焙 LUT"
+            return "光栅方程与高斯谱带、多阶加权查表；L/V 均从表面向外，径向衍射量为 (L+V)·P，入射余弦控制亮度"
         case .nacre:
-            return "2~3 层不同厚度的薄膜项取平均，再按板片法线扰动混入各向异性"
+            return "三种厚度的独立薄膜反射取平均，增加膜厚方差并降饱和；属于珠光外观近似，不求解相干多层堆栈"
         case .opal:
-            return "用 3D 噪声/Voronoi 把表面切成随机小晶域，每个域用自己的等效光栅方向"
+            return "二维 Worley 距离场扰动光栅 LUT 坐标，模拟斑块变彩；不求解三维光子晶体的能带与散射"
         case .birefringence:
-            return "拿应力场（噪声/距离场梯度）积分出相位差，相位差映射到光谱色（偏振拍频条纹）"
+            return "程序化应力场近似相位延迟，光谱透过率 sin²(δ·550/2λ) 乘轴向消光因子；白光相位连续查表，不按 2π 重复"
         case .speckle:
-            return "高频噪声按视线向量做哈希抖动；常用于特效叠加而非独立材质"
+            return "物体空间视线偏移三维坐标，cellnoise 加阈值模拟颗粒并避免球面 UV 极点拉伸；这是散斑外观近似，不计算相干波场叠加"
         case .morpho:
-            return "薄膜模型 + 故意加大结构间距的角向扩散（法线扰动方差大）"
+            return "几丁质等效薄膜 + 噪声膜厚扰动；216 nm 膜在约 449 nm 有可见反射峰，不求解真实树状多层结构"
         case .beetle:
-            return "各向异性高光叠薄膜项"
+            return "几丁质绿带薄膜与沿网格切向变化的光栅色混合；不包含椭圆偏振计算"
         case .feather:
-            return "多层膜 + 各向异性高光 + glitter 组合"
+            return "等效几丁质薄膜色 + 正弦羽枝条纹 + cellnoise 闪点；真实羽毛纳米结构采用外观近似"
         case .hologram:
             return "复用光栅 LUT：U 相位 = 表面坐标 + 视线·切向滑动 + 行偏移，V 锁定每行衍射密度，行间隙亮度调制"
         case .lcd:
-            return "worley 域 = 像素段，透过率 cos⁴(N·V) 决定斜视灰变，每域在紫/绿泄漏色间二选一"
+            return "固定 cellnoise 像素阈值随电压启闭，|N·V|⁴ 模拟斜视与紫绿泄漏；不求解液晶指向矢或 Jones 矩阵"
         case .newton:
-            return "复用薄膜 LUT：厚度轴换成 r²（到接触点距离平方），一个乘法即得同心环"
+            return "专用玻璃—空气—玻璃 Fresnel/Airy LUT，空气隙厚度按 r² 增长；外部视角先经 Snell 折射，圆盘边缘以透明度裁切"
         case .pearl:
             return "复用珍珠母 LUT：厚度偏置 + |N·V|×曲率项（中心到边缘色相渐变）+ 体色叠加 + 高光"
         case .dragonfly:
@@ -160,7 +169,7 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .chameleon:
             return "worley 晶域随机相位 + time 驱动循环采样光栅 LUT 色相轴，皮肤纹理亮度扰动"
         case .scarab:
-            return "同一薄膜 LUT 两个厚度偏移采样 = 左/右旋圆偏振色支，几何手性 h=N·(V×T) 与检偏器角度共同选择混合权重"
+            return "两个等效薄膜厚度采样，由 R→L 滑杆线性混合；这是偏振色支示意，不代表真实圆偏振选择反射或检偏器角度响应"
         }
     }
 

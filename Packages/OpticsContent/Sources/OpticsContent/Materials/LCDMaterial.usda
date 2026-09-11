@@ -51,9 +51,8 @@ def Xform "Root"
 
         def Shader "CellRand"
         {
-            uniform token info:id = "ND_worleynoise2d_float"
+            uniform token info:id = "ND_cellnoise2d_float"
             float2 inputs:texcoord.connect = </Root/LCDMaterial/PixelUV.outputs:out>
-            float inputs:jitter = 1
             float outputs:out
         }
 
@@ -66,55 +65,26 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "OneMinusV"
-        {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1.connect = </Root/LCDMaterial/One.outputs:out>
-            float inputs:in2.connect = </Root/LCDMaterial.inputs:Voltage>
-            float outputs:out
-        }
-
-        def Shader "SegDist"
-        {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1.connect = </Root/LCDMaterial/ClampRand.outputs:out>
-            float inputs:in2.connect = </Root/LCDMaterial/OneMinusV.outputs:out>
-            float outputs:out
-        }
-
-        def Shader "Eight"
-        {
-            uniform token info:id = "ND_constant_float"
-            float inputs:value = 8
-            float outputs:out
-        }
-
-        def Shader "SegSoft"
-        {
-            uniform token info:id = "ND_multiply_float"
-            float inputs:in1.connect = </Root/LCDMaterial/SegDist.outputs:out>
-            float inputs:in2.connect = </Root/LCDMaterial/Eight.outputs:out>
-            float outputs:out
-        }
-
         def Shader "SegOn"
         {
-            uniform token info:id = "ND_clamp_float"
-            float inputs:in.connect = </Root/LCDMaterial/SegSoft.outputs:out>
-            float inputs:low = 0
-            float inputs:high = 1
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LCDMaterial.inputs:Voltage>
+            float inputs:low.connect = </Root/LCDMaterial/ActivationStart.outputs:out>
+            float inputs:high.connect = </Root/LCDMaterial/ActivationEnd.outputs:out>
             float outputs:out
         }
 
         def Shader "Normal"
         {
-            uniform token info:id = "ND_normal_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/LCDMaterial/NormalSource.outputs:out>
             float3 outputs:out
         }
 
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/LCDMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
@@ -143,7 +113,7 @@ def Xform "Root"
         def Shader "NV4"
         {
             uniform token info:id = "ND_power_float"
-            float inputs:in1.connect = </Root/LCDMaterial/AbsNV.outputs:out>
+            float inputs:in1.connect = </Root/LCDMaterial/ClampNV.outputs:out>
             float inputs:in2.connect = </Root/LCDMaterial/Four.outputs:out>
             float outputs:out
         }
@@ -283,51 +253,68 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
+        def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/LCDMaterial/GainMul.outputs:out>
-            float inputs:in2.connect = </Root/LCDMaterial.inputs:Intensity>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/LCDMaterial/GainMul.outputs:out>
+            float inputs:mix.connect = </Root/LCDMaterial.inputs:Intensity>
             color3f outputs:out
         }
 
-        def Shader "OneMinusI"
+        def Shader "NormalSource"
         {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/LCDMaterial.inputs:Intensity>
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDirSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LCDMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "ActivationStart"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LCDMaterial/ClampRand.outputs:out>
+            float inputs:in2 = 0.9
             float outputs:out
         }
 
-        def Shader "GrayC"
+        def Shader "ActivationEnd"
         {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LCDMaterial/ActivationStart.outputs:out>
+            float inputs:in2 = 0.1
+            float outputs:out
         }
 
-        def Shader "GrayTerm"
+        def Shader "ClampNV"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/LCDMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/LCDMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
-        }
-
-        def Shader "IntensityBlend"
-        {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/LCDMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/LCDMaterial/GrayTerm.outputs:out>
-            color3f outputs:out
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LCDMaterial/AbsNV.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/LCDMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/LCDMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

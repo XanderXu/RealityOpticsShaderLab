@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Run the opt-in DEBUG simulator smoke audit and capture each default material.
+
+Build/install the Debug app first. This uses the app's audit hook, not UI gestures.
+The log proves loading/binding; screenshots still require visual inspection.
+"""
+import argparse
+import os
+from pathlib import Path
+import subprocess
+import threading
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--device", default="booted")
+    parser.add_argument("--effect", choices=["thinFilm", "grating", "nacre", "opal", "birefringence", "speckle", "morpho", "beetle", "feather", "hologram", "lcd", "newton", "pearl", "dragonfly", "chameleon", "scarab"])
+    parser.add_argument("--output", type=Path, default=Path("artifacts/shader-audit"))
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    bundle = "com.reality.RealityOpticsShaderLab"
+    env = dict(os.environ, SIMCTL_CHILD_OPTICS_AUDIT="1")
+    if args.effect:
+        env.update(SIMCTL_CHILD_OPTICS_EFFECT=args.effect, SIMCTL_CHILD_OPTICS_AUDIT_ONLY_SELECTED="1")
+    command = ["xcrun", "simctl", "launch", "--console", "--terminate-running-process", args.device, bundle]
+    process = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    watchdog = threading.Timer(360, process.terminate)
+    watchdog.start()
+    passed = False
+    captured = set()
+    try:
+        with (args.output / "runtime.log").open("w") as log:
+            for line in process.stdout:
+                log.write(line)
+                log.flush()
+                if "OPTICS_AUDIT" in line:
+                    print(line.strip(), flush=True)
+                if line.startswith("OPTICS_AUDIT DEFAULT "):
+                    effect = line.split()[2]
+                    subprocess.run(["xcrun", "simctl", "io", args.device, "screenshot", "--type=jpeg",
+                                    str(args.output / f"{effect}.jpg")], check=True, capture_output=True)
+                    captured.add(effect)
+                if line.startswith("OPTICS_AUDIT PASS:"):
+                    passed = True
+                    break
+    finally:
+        watchdog.cancel()
+        subprocess.run(["xcrun", "simctl", "terminate", args.device, bundle], capture_output=True)
+        process.terminate()
+        process.wait(timeout=10)
+    expected = 1 if args.effect else 16
+    if not passed or len(captured) != expected:
+        raise SystemExit(f"Incomplete audit: passed={passed}, screenshots={len(captured)}; inspect runtime.log")
+    print(f"PASS: {expected} screenshots and runtime.log saved to {args.output}")
+
+
+if __name__ == "__main__":
+    main()

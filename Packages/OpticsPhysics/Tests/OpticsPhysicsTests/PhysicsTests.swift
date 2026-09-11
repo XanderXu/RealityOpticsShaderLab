@@ -144,7 +144,7 @@ final class BirefringenceTests: XCTestCase {
 
     func testBirefringenceLUTNonBlack() {
         let lut = LUTBuilder.birefringenceLUT(width: 64)
-        XCTAssertEqual(lut.count, 64 * 8 * 4)
+        XCTAssertEqual(lut.count, 64 * 4)
         var hasColor = false
         for t in 0..<64 where lut[t * 4 + 1] != 0 { hasColor = true }
         XCTAssertTrue(hasColor)

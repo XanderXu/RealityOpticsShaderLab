@@ -93,13 +93,15 @@ def Xform "Root"
 
         def Shader "Normal"
         {
-            uniform token info:id = "ND_normal_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/BirefringenceMaterial/NormalSource.outputs:out>
             float3 outputs:out
         }
 
         def Shader "ViewDir"
         {
-            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/BirefringenceMaterial/ViewDirSource.outputs:out>
             float3 outputs:out
         }
 
@@ -135,21 +137,6 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "One"
-        {
-            uniform token info:id = "ND_constant_float"
-            float inputs:value = 1
-            float outputs:out
-        }
-
-        def Shader "UWrap"
-        {
-            uniform token info:id = "ND_modulo_float"
-            float inputs:in1.connect = </Root/BirefringenceMaterial/PhaseView.outputs:out>
-            float inputs:in2.connect = </Root/BirefringenceMaterial/One.outputs:out>
-            float outputs:out
-        }
-
         def Shader "Half"
         {
             uniform token info:id = "ND_constant_float"
@@ -160,7 +147,7 @@ def Xform "Root"
         def Shader "LutUV"
         {
             uniform token info:id = "ND_combine2_vector2"
-            float inputs:in1.connect = </Root/BirefringenceMaterial/UWrap.outputs:out>
+            float inputs:in1.connect = </Root/BirefringenceMaterial/PhaseClamp.outputs:out>
             float inputs:in2.connect = </Root/BirefringenceMaterial/Half.outputs:out>
             float2 outputs:out
         }
@@ -171,58 +158,23 @@ def Xform "Root"
             color3f inputs:default = (0, 0, 0)
             asset inputs:file.connect = </Root/BirefringenceMaterial.inputs:PhaseLUT>
             float2 inputs:texcoord.connect = </Root/BirefringenceMaterial/LutUV.outputs:out>
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
             color3f outputs:out
-        }
-
-        def Shader "Up"
-        {
-            uniform token info:id = "ND_constant_vector3"
-            float3 inputs:value = (0, 1, 0)
-            float3 outputs:out
         }
 
         def Shader "Polarizer"
         {
             uniform token info:id = "ND_constant_vector3"
-            float3 inputs:value = (0.7071, 0, 0.7071)
-            float3 outputs:out
-        }
-
-        def Shader "ZAxis"
-        {
-            uniform token info:id = "ND_constant_vector3"
-            float3 inputs:value = (0, 0, 1)
-            float3 outputs:out
-        }
-
-        def Shader "ZSmall"
-        {
-            uniform token info:id = "ND_multiply_vector3FA"
-            float3 inputs:in1.connect = </Root/BirefringenceMaterial/ZAxis.outputs:out>
-            float inputs:in2 = 0.05
-            float3 outputs:out
-        }
-
-        def Shader "UpJitter"
-        {
-            uniform token info:id = "ND_add_vector3"
-            float3 inputs:in1.connect = </Root/BirefringenceMaterial/Up.outputs:out>
-            float3 inputs:in2.connect = </Root/BirefringenceMaterial/ZSmall.outputs:out>
-            float3 outputs:out
-        }
-
-        def Shader "StressV"
-        {
-            uniform token info:id = "ND_crossproduct_vector3"
-            float3 inputs:in1.connect = </Root/BirefringenceMaterial/Normal.outputs:out>
-            float3 inputs:in2.connect = </Root/BirefringenceMaterial/UpJitter.outputs:out>
+            float3 inputs:value = (0.70710678, 0.70710678, 0)
             float3 outputs:out
         }
 
         def Shader "Stress"
         {
-            uniform token info:id = "ND_normalize_vector3"
-            float3 inputs:in.connect = </Root/BirefringenceMaterial/StressV.outputs:out>
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/StressProjected.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/StressLength.outputs:out>
             float3 outputs:out
         }
 
@@ -230,7 +182,7 @@ def Xform "Root"
         {
             uniform token info:id = "ND_dotproduct_vector3"
             float3 inputs:in1.connect = </Root/BirefringenceMaterial/Stress.outputs:out>
-            float3 inputs:in2.connect = </Root/BirefringenceMaterial/Polarizer.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/AnalyzerAxis.outputs:out>
             float outputs:out
         }
 
@@ -274,18 +226,12 @@ def Xform "Root"
             float outputs:out
         }
 
-        def Shader "ExtFloor"
-        {
-            uniform token info:id = "ND_constant_float"
-            float inputs:value = 0.05
-            float outputs:out
-        }
-
         def Shader "Extinction"
         {
-            uniform token info:id = "ND_max_float"
-            float inputs:in1.connect = </Root/BirefringenceMaterial/Sin2aSq.outputs:out>
-            float inputs:in2.connect = </Root/BirefringenceMaterial/ExtFloor.outputs:out>
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/BirefringenceMaterial/Sin2aSq.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
             float outputs:out
         }
 
@@ -305,51 +251,171 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "IntensityEff"
+        def Shader "IntensityBlend"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/BirefringenceMaterial/ExtMul.outputs:out>
-            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:Intensity>
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f inputs:fg.connect = </Root/BirefringenceMaterial/ExtMul.outputs:out>
+            float inputs:mix.connect = </Root/BirefringenceMaterial.inputs:Intensity>
             color3f outputs:out
         }
 
-        def Shader "OneMinusI"
+        def Shader "NormalSource"
         {
-            uniform token info:id = "ND_subtract_float"
-            float inputs:in1 = 1
-            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:Intensity>
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDirSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "world"
+            float3 outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/BirefringenceMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "StressAxis"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in = (1, 0, 0)
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "StressAlongView"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/StressAxis.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/ViewDir.outputs:out>
             float outputs:out
         }
 
-        def Shader "GrayC"
+        def Shader "StressViewPart"
         {
-            uniform token info:id = "ND_constant_color3"
-            color3f inputs:value = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f outputs:out
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/ViewDir.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/StressAlongView.outputs:out>
+            float3 outputs:out
         }
 
-        def Shader "GrayTerm"
+        def Shader "StressProjected"
         {
-            uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/BirefringenceMaterial/GrayC.outputs:out>
-            float inputs:in2.connect = </Root/BirefringenceMaterial/OneMinusI.outputs:out>
-            color3f outputs:out
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/StressAxis.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/StressViewPart.outputs:out>
+            float3 outputs:out
         }
 
-        def Shader "IntensityBlend"
+        def Shader "StressLength2"
         {
-            uniform token info:id = "ND_add_color3"
-            color3f inputs:in1.connect = </Root/BirefringenceMaterial/IntensityEff.outputs:out>
-            color3f inputs:in2.connect = </Root/BirefringenceMaterial/GrayTerm.outputs:out>
-            color3f outputs:out
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/StressProjected.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/StressProjected.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "StressSafeLength2"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/StressLength2.outputs:out>
+            float inputs:in2 = 1e-08
+            float outputs:out
+        }
+
+        def Shader "StressLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/BirefringenceMaterial/StressSafeLength2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AnalyzerAxisAlongView"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/Polarizer.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AnalyzerAxisViewPart"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/ViewDir.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/AnalyzerAxisAlongView.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "AnalyzerAxisProjected"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/Polarizer.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/AnalyzerAxisViewPart.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "AnalyzerAxisLength2"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/AnalyzerAxisProjected.outputs:out>
+            float3 inputs:in2.connect = </Root/BirefringenceMaterial/AnalyzerAxisProjected.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AnalyzerAxisSafeLength2"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/AnalyzerAxisLength2.outputs:out>
+            float inputs:in2 = 1e-08
+            float outputs:out
+        }
+
+        def Shader "AnalyzerAxisLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/BirefringenceMaterial/AnalyzerAxisSafeLength2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AnalyzerAxis"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/BirefringenceMaterial/AnalyzerAxisProjected.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/AnalyzerAxisLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "PhaseU"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/BirefringenceMaterial/PhaseView.outputs:out>
+            float inputs:in2 = 20
+            float outputs:out
+        }
+
+        def Shader "PhaseClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/BirefringenceMaterial/PhaseU.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
         }
 
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/BirefringenceMaterial/IntensityBlend.outputs:out>
+            color3f inputs:color.connect = </Root/BirefringenceMaterial/IntensityClamp.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out
