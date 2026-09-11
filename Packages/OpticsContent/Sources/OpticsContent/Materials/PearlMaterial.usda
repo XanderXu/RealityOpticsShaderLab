@@ -1,0 +1,314 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "PearlMaterial"
+    {
+        asset inputs:PearlLUT
+        float inputs:ThicknessBias = 0.32
+        float inputs:CurvatureAmount = 0.28
+        float inputs:TintHue = 0.5
+        float inputs:Luster = 30
+        float inputs:Gain = 1.5
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/PearlMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/PearlMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/PearlMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/PearlMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/PearlMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/PearlMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float2 inputs:in.connect = </Root/PearlMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/PearlMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 4
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/PearlMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "Fifty"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.05
+            float outputs:out
+        }
+
+        def Shader "NoiseMul"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/PearlMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/PearlMaterial/Fifty.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CurvTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/PearlMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:CurvatureAmount>
+            float outputs:out
+        }
+
+        def Shader "V0"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/PearlMaterial/CurvTerm.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:ThicknessBias>
+            float outputs:out
+        }
+
+        def Shader "Vn"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/PearlMaterial/V0.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/NoiseMul.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/PearlMaterial/Vn.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/PearlMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "PearlImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/PearlMaterial.inputs:PearlLUT>
+            float2 inputs:texcoord.connect = </Root/PearlMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "RoseC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.98, 0.8, 0.84) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GoldC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (1, 0.92, 0.72) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "TintMix"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/PearlMaterial/RoseC.outputs:out>
+            color3f inputs:fg.connect = </Root/PearlMaterial/GoldC.outputs:out>
+            float inputs:mix.connect = </Root/PearlMaterial.inputs:TintHue>
+            color3f outputs:out
+        }
+
+        def Shader "TintGlow"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/PearlMaterial/TintMix.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/Fifty.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "WhiteC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (1, 1, 1) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "Hot"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/PearlMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:Luster>
+            float outputs:out
+        }
+
+        def Shader "Eighty"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.8
+            float outputs:out
+        }
+
+        def Shader "HotScaled"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/PearlMaterial/Hot.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/Eighty.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "HotTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/PearlMaterial/WhiteC.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/HotScaled.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "PlusTint"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/PearlMaterial/PearlImage.outputs:out>
+            color3f inputs:in2.connect = </Root/PearlMaterial/TintGlow.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "PlusHot"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/PearlMaterial/PlusTint.outputs:out>
+            color3f inputs:in2.connect = </Root/PearlMaterial/HotTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/PearlMaterial/PlusHot.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/PearlMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/PearlMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/PearlMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/PearlMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/PearlMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/PearlMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/PearlMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

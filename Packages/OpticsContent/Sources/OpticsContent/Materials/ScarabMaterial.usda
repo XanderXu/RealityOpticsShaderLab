@@ -1,0 +1,366 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "ScarabMaterial"
+    {
+        asset inputs:ScarabLUT
+        float inputs:ThicknessBias = 0.22
+        float inputs:BranchShift = 0.12
+        float inputs:Analyzer = 0
+        float inputs:HandednessGain = 1.5
+        float inputs:Gain = 1.8
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/ScarabMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/ScarabMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "Up"
+        {
+            uniform token info:id = "ND_constant_vector3"
+            float3 inputs:value = (0, 1, 0)
+            float3 outputs:out
+        }
+
+        def Shader "TanV"
+        {
+            uniform token info:id = "ND_crossproduct_vector3"
+            float3 inputs:in1.connect = </Root/ScarabMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/ScarabMaterial/Up.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Tangent"
+        {
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/ScarabMaterial/TanV.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HandedVec"
+        {
+            uniform token info:id = "ND_crossproduct_vector3"
+            float3 inputs:in1.connect = </Root/ScarabMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/ScarabMaterial/ViewDir.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Handedness"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ScarabMaterial/HandedVec.outputs:out>
+            float3 inputs:in2.connect = </Root/ScarabMaterial/Tangent.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Two"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 2
+            float outputs:out
+        }
+
+        def Shader "AnalyzerX2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ScarabMaterial.inputs:Analyzer>
+            float inputs:in2.connect = </Root/ScarabMaterial/Two.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "One"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 1
+            float outputs:out
+        }
+
+        def Shader "Analyzer01"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/AnalyzerX2.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "HandedGain"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/Handedness.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial.inputs:HandednessGain>
+            float outputs:out
+        }
+
+        def Shader "Sel"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/HandedGain.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/Analyzer01.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "SelHalf"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/Sel.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WMid"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/Half.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/SelHalf.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ScarabMaterial/WMid.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ScarabMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/ScarabMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/ScarabMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ScarabMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.05
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float2 inputs:in.connect = </Root/ScarabMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/ScarabMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 3
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/ScarabMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "Thirty"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.03
+            float outputs:out
+        }
+
+        def Shader "NoiseMul"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/ScarabMaterial/Thirty.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "V1"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ScarabMaterial.inputs:ThicknessBias>
+            float inputs:in2.connect = </Root/ScarabMaterial/NoiseMul.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "V1Clamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ScarabMaterial/V1.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 0.85
+            float outputs:out
+        }
+
+        def Shader "V2"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ScarabMaterial/V1Clamp.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial.inputs:BranchShift>
+            float outputs:out
+        }
+
+        def Shader "V2Clamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ScarabMaterial/V2.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUVA"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ScarabMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/V1Clamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "LutUVB"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ScarabMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/V2Clamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "ImageLCP"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/ScarabMaterial.inputs:ScarabLUT>
+            float2 inputs:texcoord.connect = </Root/ScarabMaterial/LutUVA.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "ImageRCP"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/ScarabMaterial.inputs:ScarabLUT>
+            float2 inputs:texcoord.connect = </Root/ScarabMaterial/LutUVB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "PolMix"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/ScarabMaterial/ImageRCP.outputs:out>
+            color3f inputs:fg.connect = </Root/ScarabMaterial/ImageLCP.outputs:out>
+            float inputs:mix.connect = </Root/ScarabMaterial/WClamp.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ScarabMaterial/PolMix.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ScarabMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/ScarabMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ScarabMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/ScarabMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ScarabMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/ScarabMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/ScarabMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

@@ -1,0 +1,301 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "NewtonMaterial"
+    {
+        asset inputs:NewtonLUT
+        float inputs:RingScale = 2.2
+        float inputs:NoiseAmount = 0.015
+        float inputs:Gain = 2
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/NewtonMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/NewtonMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/NewtonMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "Dx"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/NewtonMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Dy"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/NewtonMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DxSq"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/Dx.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/Dx.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DySq"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/Dy.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/Dy.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "R2"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/DxSq.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/DySq.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float2 inputs:in.connect = </Root/NewtonMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/NewtonMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 3
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/NewtonMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "NoiseMul"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/NewtonMaterial.inputs:NoiseAmount>
+            float outputs:out
+        }
+
+        def Shader "NoiseAdd"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/R2.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/NoiseMul.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Vraw"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/NoiseAdd.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial.inputs:RingScale>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/NewtonMaterial/Vraw.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/NewtonMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/NewtonMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/NewtonMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/NewtonMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/NewtonMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "NewtonImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/NewtonMaterial.inputs:NewtonLUT>
+            float2 inputs:texcoord.connect = </Root/NewtonMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "CircDist"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/Half.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/R2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Eight"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 8
+            float outputs:out
+        }
+
+        def Shader "CircSoft"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/NewtonMaterial/CircDist.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/Eight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CircMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/NewtonMaterial/CircSoft.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/NewtonMaterial/NewtonImage.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "LitColor"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/NewtonMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/CircMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/NewtonMaterial/LitColor.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/NewtonMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/NewtonMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/NewtonMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/NewtonMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/NewtonMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/NewtonMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

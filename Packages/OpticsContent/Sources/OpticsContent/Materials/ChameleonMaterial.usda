@@ -1,0 +1,325 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "ChameleonMaterial"
+    {
+        asset inputs:ChromaLUT
+        float inputs:CellScale = 10
+        float inputs:HueSpeed = 0.15
+        float inputs:Gain = 1.6
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/ChameleonMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/ChameleonMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "CellUV"
+        {
+            uniform token info:id = "ND_multiply_vector2FA"
+            float2 inputs:in1.connect = </Root/ChameleonMaterial/Texcoord.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:CellScale>
+            float2 outputs:out
+        }
+
+        def Shader "One"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 1
+            float outputs:out
+        }
+
+        def Shader "CellRand"
+        {
+            uniform token info:id = "ND_worleynoise2d_float"
+            float2 inputs:texcoord.connect = </Root/ChameleonMaterial/CellUV.outputs:out>
+            float inputs:jitter = 1
+            float outputs:out
+        }
+
+        def Shader "RandClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChameleonMaterial/CellRand.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Time"
+        {
+            uniform token info:id = "ND_time_float"
+            float outputs:out
+        }
+
+        def Shader "Flow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/Time.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:HueSpeed>
+            float outputs:out
+        }
+
+        def Shader "Phase"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/RandClamp.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/Flow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "U"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/Phase.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChameleonMaterial/U.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 0.98
+            float outputs:out
+        }
+
+        def Shader "DotSeven"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 1.7
+            float outputs:out
+        }
+
+        def Shader "CellUV2Scale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial.inputs:CellScale>
+            float inputs:in2.connect = </Root/ChameleonMaterial/DotSeven.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CellUV2"
+        {
+            uniform token info:id = "ND_multiply_vector2FA"
+            float2 inputs:in1.connect = </Root/ChameleonMaterial/Texcoord.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/CellUV2Scale.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "CellRand2"
+        {
+            uniform token info:id = "ND_worleynoise2d_float"
+            float2 inputs:texcoord.connect = </Root/ChameleonMaterial/CellUV2.outputs:out>
+            float inputs:jitter = 1
+            float outputs:out
+        }
+
+        def Shader "Rand2Clamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChameleonMaterial/CellRand2.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "VSpread"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/Rand2Clamp.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Quarter"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.3
+            float outputs:out
+        }
+
+        def Shader "V"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/Quarter.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/VSpread.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChameleonMaterial/V.outputs:out>
+            float inputs:low = 0.05
+            float inputs:high = 0.95
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ChameleonMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "ChromaImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/ChameleonMaterial.inputs:ChromaLUT>
+            float2 inputs:texcoord.connect = </Root/ChameleonMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float2 inputs:in.connect = </Root/ChameleonMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/ChameleonMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 4
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/ChameleonMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "Fifteen"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.15
+            float outputs:out
+        }
+
+        def Shader "SkinVar"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/SepNoise.outputs:outr>
+            float inputs:in2.connect = </Root/ChameleonMaterial/Fifteen.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "EightyFive"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.85
+            float outputs:out
+        }
+
+        def Shader "SkinBright"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/EightyFive.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/SkinVar.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SkinMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChameleonMaterial/ChromaImage.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/SkinBright.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChameleonMaterial/SkinMul.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChameleonMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChameleonMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ChameleonMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/ChameleonMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/ChameleonMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

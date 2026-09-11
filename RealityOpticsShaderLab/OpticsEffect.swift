@@ -13,6 +13,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     case morpho
     case beetle
     case feather
+    case hologram
+    case lcd
+    case newton
+    case pearl
+    case dragonfly
+    case chameleon
+    case scarab
 
     var id: String { rawValue }
 
@@ -27,6 +34,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .morpho: return "闪蝶翅膀（Morpho Butterfly）"
         case .beetle: return "吉丁虫/金龟子鞘翅（Beetle Shell）"
         case .feather: return "蜂鸟/孔雀羽（Iridescent Feather）"
+        case .hologram: return "彩虹全息图（Rainbow Hologram）"
+        case .lcd: return "液晶旋光/电控调光（LCD Twist Cell）"
+        case .newton: return "牛顿环/等厚干涉（Newton's Rings）"
+        case .pearl: return "正圆珍珠（Cultured Pearl）"
+        case .dragonfly: return "蜻蜓翅膀（Dragonfly Wing）"
+        case .chameleon: return "变色龙/乌贼皮肤（Chameleon Chromatophores）"
+        case .scarab: return "圆偏振金龟子（Circular-Polarization Scarab）"
         }
     }
 
@@ -42,6 +56,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .morpho: return "闪蝶翅膀"
         case .beetle: return "吉丁虫鞘翅"
         case .feather: return "孔雀羽"
+        case .hologram: return "彩虹全息"
+        case .lcd: return "液晶旋光"
+        case .newton: return "牛顿环"
+        case .pearl: return "珍珠"
+        case .dragonfly: return "蜻蜓翅膀"
+        case .chameleon: return "变色龙皮肤"
+        case .scarab: return "圆偏振金龟"
         }
     }
 
@@ -57,6 +78,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .morpho: return "butterfly"
         case .beetle: return "ant"
         case .feather: return "feather"
+        case .hologram: return "creditcard"
+        case .lcd: return "rectangle.on.rectangle"
+        case .newton: return "circle.circle"
+        case .pearl: return "circle.fill"
+        case .dragonfly: return "wind"
+        case .chameleon: return "hare"
+        case .scarab: return "shield.lefthalf.filled"
         }
     }
 
@@ -81,6 +109,20 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
             return "椭圆偏振虹彩：高饱和金属绿 + 转动时的彩虹条带"
         case .feather:
             return "多层膜 + 各向异性高光 + glitter 的组合结构色"
+        case .hologram:
+            return "信用卡/防伪标上随视角水平滑动的彩虹条纹，一行条纹对应一个衍射视角"
+        case .lcd:
+            return "液晶屏黑场的旋光纹理、计算器屏幕斜看发灰发紫——旋光角随电压/视角变化"
+        case .newton:
+            return "平凸透镜贴平板玻璃的同心彩色圆环，空气隙厚度随半径平方变化"
+        case .pearl:
+            return "正圆珍珠的多层定向珠光 + 表面曲率驱动的体色渐变（粉白-金）"
+        case .dragonfly:
+            return "翅膜超薄薄膜干涉的微弱虹彩 + 深色脉络网格 + 半透明翅膜"
+        case .chameleon:
+            return "虹彩细胞（鸟嘌呤纳米晶格晶域）随信号主动变温变色——晶域逐个切换色相"
+        case .scarab:
+            return "金龟子鞘翅的螺旋层状结构选择反射左旋圆偏振光，四分之一波片可翻转色支"
         }
     }
 
@@ -105,13 +147,28 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
             return "各向异性高光叠薄膜项"
         case .feather:
             return "多层膜 + 各向异性高光 + glitter 组合"
+        case .hologram:
+            return "复用光栅 LUT：U 相位 = 表面坐标 + 视线·切向滑动 + 行偏移，V 锁定每行衍射密度，行间隙亮度调制"
+        case .lcd:
+            return "worley 域 = 像素段，透过率 cos⁴(N·V) 决定斜视灰变，每域在紫/绿泄漏色间二选一"
+        case .newton:
+            return "复用薄膜 LUT：厚度轴换成 r²（到接触点距离平方），一个乘法即得同心环"
+        case .pearl:
+            return "复用珍珠母 LUT：厚度偏置 + |N·V|×曲率项（中心到边缘色相渐变）+ 体色叠加 + 高光"
+        case .dragonfly:
+            return "薄膜 LUT（超薄偏置）+ 三角波抖动网格脉络（横脉×纵脉×边缘）+ 脉络不透明/翅膜半透明"
+        case .chameleon:
+            return "worley 晶域随机相位 + time 驱动循环采样光栅 LUT 色相轴，皮肤纹理亮度扰动"
+        case .scarab:
+            return "同一薄膜 LUT 两个厚度偏移采样 = 左/右旋圆偏振色支，几何手性 h=N·(V×T) 与检偏器角度共同选择混合权重"
         }
     }
 
     var isImplemented: Bool {
         switch self {
         case .thinFilm, .grating, .nacre, .opal, .birefringence, .speckle,
-             .morpho, .beetle, .feather:
+             .morpho, .beetle, .feather,
+             .hologram, .lcd, .newton, .pearl, .dragonfly, .chameleon, .scarab:
             return true
         }
     }

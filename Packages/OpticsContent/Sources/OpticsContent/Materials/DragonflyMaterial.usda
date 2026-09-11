@@ -1,0 +1,501 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "DragonflyMaterial"
+    {
+        asset inputs:FilmLUT
+        float inputs:ThicknessBias = 0.12
+        float inputs:CrossVeins = 24
+        float inputs:LongVeins = 7
+        float inputs:VeinWidth = 0.09
+        float inputs:MembraneOpacity = 0.55
+        float inputs:Gain = 1.6
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/DragonflyMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/DragonflyMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/DragonflyMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "UVtoV3"
+        {
+            uniform token info:id = "ND_convert_vector2_vector3"
+            float2 inputs:in.connect = </Root/DragonflyMaterial/Texcoord.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Fractal"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/DragonflyMaterial/UVtoV3.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 3
+            color3f outputs:out
+        }
+
+        def Shader "SepNoise"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/DragonflyMaterial/Fractal.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "Wobble"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepNoise.outputs:outr>
+            float inputs:in2 = 0.02
+            float outputs:out
+        }
+
+        def Shader "Xw"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Wobble.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Yw"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Wobble.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "One"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 1
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "Fx"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/Xw.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:CrossVeins>
+            float outputs:out
+        }
+
+        def Shader "FxFrac"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/Fx.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FxT"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/FxFrac.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FxTAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/FxT.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Fy"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/Yw.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:LongVeins>
+            float outputs:out
+        }
+
+        def Shader "FyFrac"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/Fy.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FyT"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/FyFrac.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FyTAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/FyT.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CrossDist"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial.inputs:VeinWidth>
+            float inputs:in2.connect = </Root/DragonflyMaterial/FxTAbs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Eight"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 8
+            float outputs:out
+        }
+
+        def Shader "CrossSoft"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/CrossDist.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Eight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CrossMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/CrossSoft.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LongDist"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial.inputs:VeinWidth>
+            float inputs:in2.connect = </Root/DragonflyMaterial/FyTAbs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LongSoft"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/LongDist.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Eight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LongMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/LongSoft.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "GridMask"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/CrossMask.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/LongMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Bx"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "By"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BxAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/Bx.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ByAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/By.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/BxAbs.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/ByAbs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FortyTwo"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.42
+            float outputs:out
+        }
+
+        def Shader "BorderDist"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/BMax.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/FortyTwo.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Twenty"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 20
+            float outputs:out
+        }
+
+        def Shader "BorderSoft"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/BorderDist.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/Twenty.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BorderMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/BorderSoft.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "VeinMask"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/GridMask.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/BorderMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/DragonflyMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/DragonflyMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.02
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "VGrad"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/SepUV.outputs:outy>
+            float inputs:in2 = 0.15
+            float outputs:out
+        }
+
+        def Shader "V0"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/VGrad.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:ThicknessBias>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/DragonflyMaterial/V0.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/DragonflyMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "WingImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/DragonflyMaterial.inputs:FilmLUT>
+            float2 inputs:texcoord.connect = </Root/DragonflyMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DragonflyMaterial/WingImage.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "VeinC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.16, 0.13, 0.1) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "WingColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/DragonflyMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/DragonflyMaterial/VeinC.outputs:out>
+            float inputs:mix.connect = </Root/DragonflyMaterial/VeinMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "OpacityRange"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 0.95
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:MembraneOpacity>
+            float outputs:out
+        }
+
+        def Shader "VeinOpacityAdd"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial/OpacityRange.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/VeinMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Opacity"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/DragonflyMaterial.inputs:MembraneOpacity>
+            float inputs:in2.connect = </Root/DragonflyMaterial/VeinOpacityAdd.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DragonflyMaterial/WingColor.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/DragonflyMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DragonflyMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/DragonflyMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/DragonflyMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/DragonflyMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/DragonflyMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity.connect = </Root/DragonflyMaterial/Opacity.outputs:out>
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}

@@ -99,6 +99,55 @@ final class AppModel {
     var featherGlitterScale: Float = 300 { didSet { pushFeatherParameters() } }
     var featherGain: Float = 1.5 { didSet { pushFeatherParameters() } }
 
+    // MARK: - Hologram parameters
+
+    var holoRows: Float = 22 { didSet { pushHologramParameters() } }
+    var holoSlideAmount: Float = 1.2 { didSet { pushHologramParameters() } }
+    var holoStripeContrast: Float = 6 { didSet { pushHologramParameters() } }
+    var holoGain: Float = 1.8 { didSet { pushHologramParameters() } }
+
+    // MARK: - LCD parameters
+
+    // 0.35: calculator look — greenish base with scattered dark segments.
+    var lcdVoltage: Float = 0.35 { didSet { pushLCDParameters() } }
+    var lcdPixelScale: Float = 40 { didSet { pushLCDParameters() } }
+    var lcdTintAmount: Float = 1 { didSet { pushLCDParameters() } }
+    var lcdGain: Float = 1 { didSet { pushLCDParameters() } }
+
+    // MARK: - Newton's rings parameters
+
+    var newtonRingScale: Float = 2.2 { didSet { pushNewtonParameters() } }
+    var newtonNoise: Float = 0.015 { didSet { pushNewtonParameters() } }
+    var newtonGain: Float = 2 { didSet { pushNewtonParameters() } }
+
+    // MARK: - Pearl parameters
+
+    var pearlThicknessBias: Float = 0.32 { didSet { pushPearlParameters() } }
+    var pearlCurvature: Float = 0.28 { didSet { pushPearlParameters() } }
+    var pearlTintHue: Float = 0.5 { didSet { pushPearlParameters() } }
+    var pearlGain: Float = 1.5 { didSet { pushPearlParameters() } }
+
+    // MARK: - Dragonfly parameters
+
+    var dragonflyThicknessBias: Float = 0.12 { didSet { pushDragonflyParameters() } }
+    var dragonflyCrossVeins: Float = 24 { didSet { pushDragonflyParameters() } }
+    var dragonflyVeinWidth: Float = 0.09 { didSet { pushDragonflyParameters() } }
+    var dragonflyMembraneOpacity: Float = 0.55 { didSet { pushDragonflyParameters() } }
+    var dragonflyGain: Float = 1.6 { didSet { pushDragonflyParameters() } }
+
+    // MARK: - Chameleon parameters
+
+    var chameleonCellScale: Float = 10 { didSet { pushChameleonParameters() } }
+    var chameleonHueSpeed: Float = 0.15 { didSet { pushChameleonParameters() } }
+    var chameleonGain: Float = 1.6 { didSet { pushChameleonParameters() } }
+
+    // MARK: - Scarab parameters
+
+    var scarabThicknessBias: Float = 0.22 { didSet { pushScarabParameters() } }
+    var scarabBranchShift: Float = 0.12 { didSet { pushScarabParameters() } }
+    var scarabAnalyzer: Float = 0 { didSet { pushScarabParameters() } }
+    var scarabGain: Float = 1.8 { didSet { pushScarabParameters() } }
+
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
@@ -128,6 +177,13 @@ final class AppModel {
     private(set) var morphoMaterial: ShaderGraphMaterial?
     private(set) var beetleMaterial: ShaderGraphMaterial?
     private(set) var featherMaterial: ShaderGraphMaterial?
+    private(set) var hologramMaterial: ShaderGraphMaterial?
+    private(set) var lcdMaterial: ShaderGraphMaterial?
+    private(set) var newtonMaterial: ShaderGraphMaterial?
+    private(set) var pearlMaterial: ShaderGraphMaterial?
+    private(set) var dragonflyMaterial: ShaderGraphMaterial?
+    private(set) var chameleonMaterial: ShaderGraphMaterial?
+    private(set) var scarabMaterial: ShaderGraphMaterial?
     private(set) var filmLUT: LUTTexture?
     private(set) var gratingLUT: LUTTexture?
     private(set) var nacreLUT: LUTTexture?
@@ -294,6 +350,108 @@ final class AppModel {
                 SettingSpec(id: "fGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.featherGain ?? 0 },
                             set: { [weak self] in self?.featherGain = $0 }),
+            ]
+        case .hologram:
+            return [
+                SettingSpec(id: "hRows", label: "Stripe rows", range: 6...48,
+                            get: { [weak self] in self?.holoRows ?? 0 },
+                            set: { [weak self] in self?.holoRows = $0 }),
+                SettingSpec(id: "hSlide", label: "View slide amount", range: 0...3,
+                            get: { [weak self] in self?.holoSlideAmount ?? 0 },
+                            set: { [weak self] in self?.holoSlideAmount = $0 }),
+                SettingSpec(id: "hContrast", label: "Stripe contrast", range: 2...12,
+                            get: { [weak self] in self?.holoStripeContrast ?? 0 },
+                            set: { [weak self] in self?.holoStripeContrast = $0 }),
+                SettingSpec(id: "hGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.holoGain ?? 0 },
+                            set: { [weak self] in self?.holoGain = $0 }),
+            ]
+        case .lcd:
+            return [
+                SettingSpec(id: "lVolt", label: "Drive voltage (dark segments)", range: 0...1,
+                            get: { [weak self] in self?.lcdVoltage ?? 0 },
+                            set: { [weak self] in self?.lcdVoltage = $0 }),
+                SettingSpec(id: "lPixel", label: "Pixel domain scale", range: 16...90,
+                            get: { [weak self] in self?.lcdPixelScale ?? 0 },
+                            set: { [weak self] in self?.lcdPixelScale = $0 }),
+                SettingSpec(id: "lTint", label: "Off-axis tint", range: 0...1,
+                            get: { [weak self] in self?.lcdTintAmount ?? 0 },
+                            set: { [weak self] in self?.lcdTintAmount = $0 }),
+                SettingSpec(id: "lGain", label: "Gain", range: 0.5...2,
+                            get: { [weak self] in self?.lcdGain ?? 0 },
+                            set: { [weak self] in self?.lcdGain = $0 }),
+            ]
+        case .newton:
+            return [
+                SettingSpec(id: "nScale", label: "Curvature (ring density)", range: 0.5...5,
+                            get: { [weak self] in self?.newtonRingScale ?? 0 },
+                            set: { [weak self] in self?.newtonRingScale = $0 }),
+                SettingSpec(id: "nNoise", label: "Gap dust (noise)", range: 0...0.06,
+                            get: { [weak self] in self?.newtonNoise ?? 0 },
+                            set: { [weak self] in self?.newtonNoise = $0 }),
+                SettingSpec(id: "nGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.newtonGain ?? 0 },
+                            set: { [weak self] in self?.newtonGain = $0 }),
+            ]
+        case .pearl:
+            return [
+                SettingSpec(id: "pBias", label: "Nacre thickness", range: 0.1...0.6,
+                            get: { [weak self] in self?.pearlThicknessBias ?? 0 },
+                            set: { [weak self] in self?.pearlThicknessBias = $0 }),
+                SettingSpec(id: "pCurv", label: "Curvature hue sweep", range: 0...0.6,
+                            get: { [weak self] in self?.pearlCurvature ?? 0 },
+                            set: { [weak self] in self?.pearlCurvature = $0 }),
+                SettingSpec(id: "pHue", label: "Body tint (rose-gold)", range: 0...1,
+                            get: { [weak self] in self?.pearlTintHue ?? 0 },
+                            set: { [weak self] in self?.pearlTintHue = $0 }),
+                SettingSpec(id: "pGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.pearlGain ?? 0 },
+                            set: { [weak self] in self?.pearlGain = $0 }),
+            ]
+        case .dragonfly:
+            return [
+                SettingSpec(id: "dBias", label: "Membrane thickness", range: 0.04...0.3,
+                            get: { [weak self] in self?.dragonflyThicknessBias ?? 0 },
+                            set: { [weak self] in self?.dragonflyThicknessBias = $0 }),
+                SettingSpec(id: "dCross", label: "Cross veins", range: 8...48,
+                            get: { [weak self] in self?.dragonflyCrossVeins ?? 0 },
+                            set: { [weak self] in self?.dragonflyCrossVeins = $0 }),
+                SettingSpec(id: "dWidth", label: "Vein width", range: 0.03...0.2,
+                            get: { [weak self] in self?.dragonflyVeinWidth ?? 0 },
+                            set: { [weak self] in self?.dragonflyVeinWidth = $0 }),
+                SettingSpec(id: "dOpacity", label: "Membrane opacity", range: 0.2...0.9,
+                            get: { [weak self] in self?.dragonflyMembraneOpacity ?? 0 },
+                            set: { [weak self] in self?.dragonflyMembraneOpacity = $0 }),
+                SettingSpec(id: "dGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.dragonflyGain ?? 0 },
+                            set: { [weak self] in self?.dragonflyGain = $0 }),
+            ]
+        case .chameleon:
+            return [
+                SettingSpec(id: "cCell", label: "Chromatophore scale", range: 4...24,
+                            get: { [weak self] in self?.chameleonCellScale ?? 0 },
+                            set: { [weak self] in self?.chameleonCellScale = $0 }),
+                SettingSpec(id: "cSpeed", label: "Color switching speed", range: 0...0.6,
+                            get: { [weak self] in self?.chameleonHueSpeed ?? 0 },
+                            set: { [weak self] in self?.chameleonHueSpeed = $0 }),
+                SettingSpec(id: "cGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.chameleonGain ?? 0 },
+                            set: { [weak self] in self?.chameleonGain = $0 }),
+            ]
+        case .scarab:
+            return [
+                SettingSpec(id: "sBias", label: "Bragg thickness", range: 0.1...0.5,
+                            get: { [weak self] in self?.scarabThicknessBias ?? 0 },
+                            set: { [weak self] in self?.scarabThicknessBias = $0 }),
+                SettingSpec(id: "sShift", label: "L/R branch shift", range: 0...0.3,
+                            get: { [weak self] in self?.scarabBranchShift ?? 0 },
+                            set: { [weak self] in self?.scarabBranchShift = $0 }),
+                SettingSpec(id: "sAnalyzer", label: "Quarter-wave analyzer", range: 0...1,
+                            get: { [weak self] in self?.scarabAnalyzer ?? 0 },
+                            set: { [weak self] in self?.scarabAnalyzer = $0 }),
+                SettingSpec(id: "sGain", label: "Gain", range: 0.5...3,
+                            get: { [weak self] in self?.scarabGain ?? 0 },
+                            set: { [weak self] in self?.scarabGain = $0 }),
             ]
         default:
             return []
@@ -476,6 +634,106 @@ final class AppModel {
             return
         }
 
+        do {
+            let holo = try await loadLutMaterial(
+                prim: "/Root/HologramMaterial",
+                file: "Materials/HologramMaterial.usda",
+                lutName: "HoloLUT",
+                texture: gratingTexture.resource
+            )
+            self.hologramMaterial = holo
+            pushHologramParameters()
+        } catch {
+            statusMessage = "hologram err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            // LCD is fully procedural (worley domains + cos^4 view falloff).
+            var lcd = try await ShaderGraphMaterial(
+                named: "/Root/LCDMaterial",
+                from: "Materials/LCDMaterial.usda",
+                in: opticsContentBundle
+            )
+            lcd.faceCulling = .none
+            self.lcdMaterial = lcd
+            pushLCDParameters()
+        } catch {
+            statusMessage = "lcd err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            // Newton's rings: film LUT with the thickness axis fed by r^2.
+            let newton = try await loadLutMaterial(
+                prim: "/Root/NewtonMaterial",
+                file: "Materials/NewtonMaterial.usda",
+                lutName: "NewtonLUT",
+                texture: filmTexture.resource
+            )
+            self.newtonMaterial = newton
+            pushNewtonParameters()
+        } catch {
+            statusMessage = "newton err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            let pearl = try await loadLutMaterial(
+                prim: "/Root/PearlMaterial",
+                file: "Materials/PearlMaterial.usda",
+                lutName: "PearlLUT",
+                texture: nacreTexture.resource
+            )
+            self.pearlMaterial = pearl
+            pushPearlParameters()
+        } catch {
+            statusMessage = "pearl err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            let dragonfly = try await loadLutMaterial(
+                prim: "/Root/DragonflyMaterial",
+                file: "Materials/DragonflyMaterial.usda",
+                lutName: "FilmLUT",
+                texture: morphoTexture.resource
+            )
+            self.dragonflyMaterial = dragonfly
+            pushDragonflyParameters()
+        } catch {
+            statusMessage = "dragonfly err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            let chameleon = try await loadLutMaterial(
+                prim: "/Root/ChameleonMaterial",
+                file: "Materials/ChameleonMaterial.usda",
+                lutName: "ChromaLUT",
+                texture: gratingTexture.resource
+            )
+            self.chameleonMaterial = chameleon
+            pushChameleonParameters()
+        } catch {
+            statusMessage = "chameleon err: \(error.localizedDescription)"
+            return
+        }
+
+        do {
+            let scarab = try await loadLutMaterial(
+                prim: "/Root/ScarabMaterial",
+                file: "Materials/ScarabMaterial.usda",
+                lutName: "ScarabLUT",
+                texture: morphoTexture.resource
+            )
+            self.scarabMaterial = scarab
+            pushScarabParameters()
+        } catch {
+            statusMessage = "scarab err: \(error.localizedDescription)"
+            return
+        }
+
         // Apply any stored (env-provided) intensity now that materials exist.
         for effect in OpticsEffect.allCases {
             pushIntensity(for: effect)
@@ -507,6 +765,13 @@ final class AppModel {
         case .morpho: return "MorphoWing"
         case .beetle: return "BeetleShell"
         case .feather: return "FeatherVane"
+        case .hologram: return "HoloCard"
+        case .lcd: return "LCDPanel"
+        case .newton: return "NewtonPlate"
+        case .pearl: return "PearlOrb"
+        case .dragonfly: return "DragonflyWing"
+        case .chameleon: return "ChameleonSkin"
+        case .scarab: return "ScarabShell"
         default: return "Placeholder"
         }
     }
@@ -656,6 +921,105 @@ final class AppModel {
                 root.addChild(cd)
             }
 
+        case .hologram:
+            guard let holo = hologramMaterial else { return }
+            if let card = root.findEntity(named: keep) {
+                assign(holo, to: card)
+            } else {
+                let card = ModelEntity(
+                    mesh: .generatePlane(width: 0.28, height: 0.16),
+                    materials: [holo]
+                )
+                card.name = keep
+                card.position = SIMD3(0, -0.02, 0)
+                root.addChild(card)
+            }
+
+        case .lcd:
+            guard let lcd = lcdMaterial else { return }
+            if let panel = root.findEntity(named: keep) {
+                assign(lcd, to: panel)
+            } else {
+                let panel = ModelEntity(
+                    mesh: .generatePlane(width: 0.3, height: 0.22),
+                    materials: [lcd]
+                )
+                panel.name = keep
+                panel.position = SIMD3(0, -0.02, 0)
+                root.addChild(panel)
+            }
+
+        case .newton:
+            guard let newton = newtonMaterial else { return }
+            if let plate = root.findEntity(named: keep) {
+                assign(newton, to: plate)
+            } else {
+                let plate = ModelEntity(
+                    mesh: .generatePlane(width: 0.26, height: 0.26),
+                    materials: [newton]
+                )
+                plate.name = keep
+                plate.position = SIMD3(0, -0.02, 0)
+                root.addChild(plate)
+            }
+
+        case .pearl:
+            guard let pearl = pearlMaterial else { return }
+            if let orb = root.findEntity(named: keep) {
+                assign(pearl, to: orb)
+            } else {
+                let orb = ModelEntity(
+                    mesh: .generateSphere(radius: 0.1),
+                    materials: [pearl]
+                )
+                orb.name = keep
+                orb.position = SIMD3(0, -0.02, 0)
+                root.addChild(orb)
+            }
+
+        case .dragonfly:
+            guard let wing = dragonflyMaterial else { return }
+            if let vane = root.findEntity(named: keep) {
+                assign(wing, to: vane)
+            } else {
+                let vane = ModelEntity(
+                    mesh: .generatePlane(width: 0.32, height: 0.2),
+                    materials: [wing]
+                )
+                vane.name = keep
+                vane.position = SIMD3(0, -0.02, 0)
+                root.addChild(vane)
+            }
+
+        case .chameleon:
+            guard let skin = chameleonMaterial else { return }
+            if let patch = root.findEntity(named: keep) {
+                assign(skin, to: patch)
+            } else {
+                let patch = ModelEntity(
+                    mesh: .generateSphere(radius: 0.11),
+                    materials: [skin]
+                )
+                patch.name = keep
+                patch.position = SIMD3(0, -0.02, 0)
+                root.addChild(patch)
+            }
+
+        case .scarab:
+            guard let scarab = scarabMaterial else { return }
+            if let shell = root.findEntity(named: keep) {
+                assign(scarab, to: shell)
+            } else {
+                let shell = ModelEntity(
+                    mesh: .generateSphere(radius: 0.12),
+                    materials: [scarab]
+                )
+                shell.scale = SIMD3(1.15, 0.8, 1.5)
+                shell.name = keep
+                shell.position = SIMD3(0, -0.02, 0)
+                root.addChild(shell)
+            }
+
         default:
             guard root.findEntity(named: keep) == nil else { return }
             let placeholder: ModelEntity
@@ -803,6 +1167,78 @@ final class AppModel {
         materialRevision += 1
     }
 
+    private func pushHologramParameters() {
+        guard var holo = hologramMaterial else { return }
+        setParam(&holo, "Rows", .float(holoRows))
+        setParam(&holo, "SlideAmount", .float(holoSlideAmount))
+        setParam(&holo, "StripeContrast", .float(holoStripeContrast))
+        setParam(&holo, "Gain", .float(holoGain))
+        hologramMaterial = holo
+        materialRevision += 1
+    }
+
+    private func pushLCDParameters() {
+        guard var lcd = lcdMaterial else { return }
+        setParam(&lcd, "Voltage", .float(lcdVoltage))
+        setParam(&lcd, "PixelScale", .float(lcdPixelScale))
+        setParam(&lcd, "TintAmount", .float(lcdTintAmount))
+        setParam(&lcd, "Gain", .float(lcdGain))
+        lcdMaterial = lcd
+        materialRevision += 1
+    }
+
+    private func pushNewtonParameters() {
+        guard var newton = newtonMaterial else { return }
+        setParam(&newton, "RingScale", .float(newtonRingScale))
+        setParam(&newton, "NoiseAmount", .float(newtonNoise))
+        setParam(&newton, "Gain", .float(newtonGain))
+        newtonMaterial = newton
+        materialRevision += 1
+    }
+
+    private func pushPearlParameters() {
+        guard var pearl = pearlMaterial else { return }
+        setParam(&pearl, "ThicknessBias", .float(pearlThicknessBias))
+        setParam(&pearl, "CurvatureAmount", .float(pearlCurvature))
+        setParam(&pearl, "TintHue", .float(pearlTintHue))
+        setParam(&pearl, "Luster", .float(30))
+        setParam(&pearl, "Gain", .float(pearlGain))
+        pearlMaterial = pearl
+        materialRevision += 1
+    }
+
+    private func pushDragonflyParameters() {
+        guard var wing = dragonflyMaterial else { return }
+        setParam(&wing, "ThicknessBias", .float(dragonflyThicknessBias))
+        setParam(&wing, "CrossVeins", .float(dragonflyCrossVeins))
+        setParam(&wing, "LongVeins", .float(7))
+        setParam(&wing, "VeinWidth", .float(dragonflyVeinWidth))
+        setParam(&wing, "MembraneOpacity", .float(dragonflyMembraneOpacity))
+        setParam(&wing, "Gain", .float(dragonflyGain))
+        dragonflyMaterial = wing
+        materialRevision += 1
+    }
+
+    private func pushChameleonParameters() {
+        guard var skin = chameleonMaterial else { return }
+        setParam(&skin, "CellScale", .float(chameleonCellScale))
+        setParam(&skin, "HueSpeed", .float(chameleonHueSpeed))
+        setParam(&skin, "Gain", .float(chameleonGain))
+        chameleonMaterial = skin
+        materialRevision += 1
+    }
+
+    private func pushScarabParameters() {
+        guard var scarab = scarabMaterial else { return }
+        setParam(&scarab, "ThicknessBias", .float(scarabThicknessBias))
+        setParam(&scarab, "BranchShift", .float(scarabBranchShift))
+        setParam(&scarab, "Analyzer", .float(scarabAnalyzer))
+        setParam(&scarab, "HandednessGain", .float(1.5))
+        setParam(&scarab, "Gain", .float(scarabGain))
+        scarabMaterial = scarab
+        materialRevision += 1
+    }
+
     private func material(for effect: OpticsEffect) -> ShaderGraphMaterial? {
         switch effect {
         case .thinFilm: return filmMaterial
@@ -814,6 +1250,13 @@ final class AppModel {
         case .morpho: return morphoMaterial
         case .beetle: return beetleMaterial
         case .feather: return featherMaterial
+        case .hologram: return hologramMaterial
+        case .lcd: return lcdMaterial
+        case .newton: return newtonMaterial
+        case .pearl: return pearlMaterial
+        case .dragonfly: return dragonflyMaterial
+        case .chameleon: return chameleonMaterial
+        case .scarab: return scarabMaterial
         default: return nil
         }
     }
@@ -829,6 +1272,13 @@ final class AppModel {
         case .morpho: morphoMaterial = material
         case .beetle: beetleMaterial = material
         case .feather: featherMaterial = material
+        case .hologram: hologramMaterial = material
+        case .lcd: lcdMaterial = material
+        case .newton: newtonMaterial = material
+        case .pearl: pearlMaterial = material
+        case .dragonfly: dragonflyMaterial = material
+        case .chameleon: chameleonMaterial = material
+        case .scarab: scarabMaterial = material
         default: break
         }
     }

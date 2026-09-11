@@ -1,0 +1,460 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "HologramMaterial"
+    {
+        asset inputs:HoloLUT
+        float inputs:Rows = 22
+        float inputs:SlideAmount = 1.2
+        float inputs:StripeContrast = 6
+        float inputs:Gain = 1.8
+        float inputs:Intensity = 1
+        token outputs:mtlx:surface.connect = </Root/HologramMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/HologramMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "DefaultSurfaceShader" (
+            active = false
+        )
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+
+        def Shader "Texcoord"
+        {
+            uniform token info:id = "ND_texcoord_vector2"
+            float2 outputs:out
+        }
+
+        def Shader "SepUV"
+        {
+            uniform token info:id = "ND_separate2_vector2"
+            float2 inputs:in.connect = </Root/HologramMaterial/Texcoord.outputs:out>
+            float outputs:outx
+            float outputs:outy
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "Up"
+        {
+            uniform token info:id = "ND_constant_vector3"
+            float3 inputs:value = (0, 1, 0)
+            float3 outputs:out
+        }
+
+        def Shader "TanV"
+        {
+            uniform token info:id = "ND_crossproduct_vector3"
+            float3 inputs:in1.connect = </Root/HologramMaterial/Up.outputs:out>
+            float3 inputs:in2.connect = </Root/HologramMaterial/Normal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Tangent"
+        {
+            uniform token info:id = "ND_normalize_vector3"
+            float3 inputs:in.connect = </Root/HologramMaterial/TanV.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSlide"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/HologramMaterial/ViewDir.outputs:out>
+            float3 inputs:in2.connect = </Root/HologramMaterial/Tangent.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Slide"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/ViewSlide.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:SlideAmount>
+            float outputs:out
+        }
+
+        def Shader "ScaledY"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:Rows>
+            float outputs:out
+        }
+
+        def Shader "One"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 1
+            float outputs:out
+        }
+
+        def Shader "RowFrac"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/HologramMaterial/ScaledY.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RowIdx"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/ScaledY.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/RowFrac.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PhaseGain"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.75
+            float outputs:out
+        }
+
+        def Shader "PhaseRow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/RowIdx.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/PhaseGain.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Two"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 2
+            float outputs:out
+        }
+
+        def Shader "UBase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/HologramMaterial/Two.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UPlusSlide"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/HologramMaterial/UBase.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/Slide.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UPlusRow"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/HologramMaterial/UPlusSlide.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/PhaseRow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "URow"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/HologramMaterial/UPlusRow.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/HologramMaterial/URow.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "GoldenK"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.618
+            float outputs:out
+        }
+
+        def Shader "RowGolden"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/RowIdx.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/GoldenK.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GoldenFrac"
+        {
+            uniform token info:id = "ND_modulo_float"
+            float inputs:in1.connect = </Root/HologramMaterial/RowGolden.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/One.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.5
+            float outputs:out
+        }
+
+        def Shader "VHalf"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/GoldenFrac.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Quarter"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.25
+            float outputs:out
+        }
+
+        def Shader "VRow"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/HologramMaterial/Quarter.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/VHalf.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/HologramMaterial/VRow.outputs:out>
+            float inputs:low = 0.05
+            float inputs:high = 0.95
+            float outputs:out
+        }
+
+        def Shader "LutUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/HologramMaterial/UClamp.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/VClamp.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "HoloImage"
+        {
+            uniform token info:id = "ND_image_color3"
+            color3f inputs:default = (0, 0, 0)
+            asset inputs:file.connect = </Root/HologramMaterial.inputs:HoloLUT>
+            float2 inputs:texcoord.connect = </Root/HologramMaterial/LutUV.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "RFc"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/RowFrac.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RFAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/HologramMaterial/RFc.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandWidth"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 0.45
+            float outputs:out
+        }
+
+        def Shader "BandDist"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/BandWidth.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/RFAbs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandRaw"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/BandDist.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:StripeContrast>
+            float outputs:out
+        }
+
+        def Shader "BandMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/HologramMaterial/BandRaw.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Bx"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/SepUV.outputs:outx>
+            float inputs:in2.connect = </Root/HologramMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "By"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/SepUV.outputs:outy>
+            float inputs:in2.connect = </Root/HologramMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BxAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/HologramMaterial/Bx.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ByAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/HologramMaterial/By.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/HologramMaterial/BxAbs.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/ByAbs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BorderRaw"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/HologramMaterial/Half.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/BMax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Eight"
+        {
+            uniform token info:id = "ND_constant_float"
+            float inputs:value = 8
+            float outputs:out
+        }
+
+        def Shader "BorderSoft"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/BorderRaw.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/Eight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BorderMask"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/HologramMaterial/BorderSoft.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Bright"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/HologramMaterial/BandMask.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/BorderMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/HologramMaterial/HoloImage.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "LitColor"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/HologramMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/Bright.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/HologramMaterial/LitColor.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/HologramMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/HologramMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/HologramMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/HologramMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/HologramMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/HologramMaterial/IntensityBlend.outputs:out>
+            float inputs:opacity = 1
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+    }
+}
