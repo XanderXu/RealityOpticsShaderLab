@@ -20,17 +20,8 @@ struct OpticsSceneView: View {
                     model.syncSceneObjects()
                 }
 
-                // Turntable rotation for whichever effect object is present.
-                // The morpho wing oscillates instead of spinning: grazing angles
-                // wash the structural blue out with white Fresnel reflection.
-                // Paused via the toolbar button for closer inspection.
+                // One clock keeps both material samples in sync.
                 var spin: Float = 0
-                let lean = simd_quatf(angle: -0.7, axis: SIMD3(1, 0, 0))
-                // The photoelastic ruler leans while spinning: a flat slab spinning
-                // about its own normal can never change |N·V| for a fixed camera,
-                // but a leaning slab's normal precesses, so the retardance path
-                // length 1/cos(θ) — and the interference colors — sweep as it turns.
-                let rulerLean = simd_quatf(angle: -0.45, axis: SIMD3(1, 0, 0))
                 var lastObject: ObjectIdentifier?
                 _ = content.subscribe(to: SceneEvents.Update.self) { event in
                     guard let object = root.children.first else { lastObject = nil; return }
@@ -39,18 +30,8 @@ struct OpticsSceneView: View {
                     lastObject = identity
                     if model.isAnimating { spin += Float(event.deltaTime) }
                     for child in root.children {
-                        if child.name == "CompactDisc" {
-                            child.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
-                        } else if child.name == "BirefrRuler" {
-                            child.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0)) * rulerLean
-                        } else if child.name == "MorphoWing" || child.name == "DragonflyWing" {
-                            // Wings oscillate instead of spinning: a spinning plane
-                            // goes edge-on to the camera half the time.
-                            let sway = sin(spin * 0.5) * 0.6
-                            child.orientation = simd_quatf(angle: sway, axis: SIMD3(0, 1, 0))
-                        } else {
-                            child.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0))
-                        }
+                        guard let shape = PreviewShape(rawValue: child.name) else { continue }
+                        child.orientation = shape.orientation(at: spin)
                     }
                 }
             } update: { content in
@@ -61,12 +42,12 @@ struct OpticsSceneView: View {
                 let bounds = content.convert(geometry.frame(in: .local), from: .local, to: .scene)
                 // Fit the entire rotational envelope, not the current orientation.
                 // This keeps wide discs and wings clear of both inspector panels.
-                let scale = max(0.01, min(bounds.extents.x, bounds.extents.y) * 0.84 / previewDiameter)
+                let scale = max(0.01, min(bounds.extents.x / 0.66, bounds.extents.y / 0.34) * 0.84)
                 root.scale = SIMD3(repeating: scale)
                 // A window's proposed depth is not the preview's display plane.
                 // Keep z at the window plane instead of moving toward the viewer.
                 // RealityView's origin already follows the center of its 2D frame.
-                root.position = SIMD3(0, 0.02 * scale, 0)
+                root.position = .zero
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
@@ -76,17 +57,8 @@ struct OpticsSceneView: View {
         .onChange(of: model.selectedEffect) { _, _ in
             model.syncSceneObjects()
         }
-    }
-
-    /// Conservative diameters in meters, including geometry offsets and rotation.
-    private var previewDiameter: Float {
-        switch model.selectedEffect {
-        case .grating: return 0.56
-        case .birefringence: return 0.44
-        case .morpho, .feather, .dragonfly: return 0.44
-        case .beetle, .scarab: return 0.44
-        case .hologram, .lcd, .newton: return 0.40
-        default: return 0.30
+        .onChange(of: model.previewGroup) { _, _ in
+            model.syncSceneObjects()
         }
     }
 }

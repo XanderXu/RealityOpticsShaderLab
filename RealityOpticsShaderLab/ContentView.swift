@@ -26,6 +26,7 @@ struct ContentView: View {
             do {
                 try await model.runShaderAuditIfRequested()
                 try await model.runPerformanceAuditIfRequested()
+                try await model.runPreviewAuditIfRequested()
             } catch {
                 model.report(error: "Error: \(error.localizedDescription)")
                 print("OPTICS_AUDIT FAIL: \(error.localizedDescription)")
@@ -73,7 +74,7 @@ struct ContentView: View {
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
             }
-            .padding(22)
+            .padding(18)
 
             OpticsSceneView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -87,37 +88,49 @@ struct ContentView: View {
                     }
                 }
 
-            VStack(spacing: 14) {
-                Text("调整右侧参数，观察色彩与纹理的变化")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Button {
-                    model.isAnimating.toggle()
-                } label: {
-                    Label(
-                        model.isAnimating ? "暂停旋转" : "继续旋转",
-                        systemImage: model.isAnimating ? "pause.fill" : "play.fill"
-                    )
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minWidth: 126, minHeight: 28)
+            HStack {
+                ForEach(model.previewGroup.shapes) { shape in
+                    Label(shape.title, systemImage: shape.symbol)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .accessibilityIdentifier("preview.animation")
-
-                HStack(alignment: .top, spacing: 7) {
-                    Image(systemName: model.statusMessage == "Ready" ? "checkmark.circle.fill" : "info.circle")
-                        .foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
-                    Text(model.statusMessage == "Ready" ? "渲染就绪" : model.statusMessage)
-                        .textSelection(.enabled)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 22)
+            .padding(.bottom, 14)
+
+            VStack(spacing: 12) {
+                PreviewControlsView()
+
+                HStack(spacing: 12) {
+                    Button {
+                        model.isAnimating.toggle()
+                    } label: {
+                        Label(
+                            model.isAnimating ? "暂停旋转" : "继续旋转",
+                            systemImage: model.isAnimating ? "pause.fill" : "play.fill"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 28)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("preview.animation")
+                    Spacer(minLength: 0)
+                    Label(model.statusMessage == "Ready" ? "渲染就绪" : "准备中", systemImage:
+                            model.statusMessage == "Ready" ? "checkmark.circle.fill" : "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
+                }
+
+                if model.statusMessage != "Ready" {
+                    Text(model.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
         .background {
             RoundedRectangle(cornerRadius: 24)

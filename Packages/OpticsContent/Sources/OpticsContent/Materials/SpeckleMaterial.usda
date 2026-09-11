@@ -14,6 +14,8 @@ def Xform "Root"
         float inputs:Threshold = 0.82
         float inputs:Gain = 1.6
         float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
         token outputs:mtlx:surface.connect = </Root/SpeckleMaterial/Unlit.outputs:out>
         token outputs:realitykit:vertex
         token outputs:surface.connect = </Root/SpeckleMaterial/DefaultSurfaceShader.outputs:surface>
@@ -121,13 +123,22 @@ def Xform "Root"
             color3f outputs:out
         }
 
+        # Display comparison of a colored base and the optical signal, in linear light.
+        # BaseAmount = 0 preserves the original effect; 1 isolates the base color.
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/SpeckleMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/SpeckleMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg = (0.5, 0.5, 0.5) (
-                colorSpace = "srgb_texture"
-            )
-            color3f inputs:fg.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
+            color3f inputs:bg.connect = </Root/SpeckleMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/SpeckleMaterial/BaseColorBlend.outputs:out>
             float inputs:mix.connect = </Root/SpeckleMaterial.inputs:Intensity>
             color3f outputs:out
         }

@@ -184,6 +184,21 @@ def main():
     total=0
     for graph in graphs.values():
         total+=graph.validate(definitions)
+        # Color comparison must retain the optical signal at 0%, reach the chosen
+        # base at 100%, and keep Intensity=0 useful as a base-only inspection.
+        base_blend = graph.nodes['BaseColorBlend'][1]
+        optical_node, _, _ = graph.resolve(base_blend['inputs:bg'][2])
+        optical = graph.evaluate(optical_node)
+        neutral = (0.2140411405,) * 3
+        original = graph.evaluate('Unlit', {'BaseAmount': 0, 'BaseColor': neutral})
+        assert all(math.isclose(a, max(b, 0), abs_tol=1e-7) for a,b in zip(original,optical)), f'{graph.name}: original color changed'
+        for base in [(0.,)*3, (1.,)*3, (.18,)*3, (1.,0.,0.), (0.,1.,0.), (0.,0.,1.), (0.,1.,1.), (1.,0.,1.), (1.,1.,0.)]:
+            for strength in [0, 1, 2]:
+                actual = graph.evaluate('Unlit', {'BaseColor':base, 'BaseAmount':1, 'Intensity':strength})
+                assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(actual,base)), f'{graph.name}: base endpoint failed'
+            actual = graph.evaluate('Unlit', {'BaseColor':base, 'BaseAmount':0.35, 'Intensity':1})
+            expected = tuple(max(0,a*0.65+b*0.35) for a,b in zip(optical,base))
+            assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(actual,expected)), f'{graph.name}: base blend failed'
         for uv in [(0.,0.),(.5,.5),(1.,1.)]:
             for view in [(0.,0.,1.),(0.,0.,-1.),(0.,1.,0.),(1.,0.,0.)]:
                 for intensity in [0,1,2]:
@@ -212,7 +227,7 @@ def main():
     for graph in ['DiffractionGratingMaterial','OpalMaterial','BeetleMaterial']:
         assert graphs[graph].evaluate('Radial',fixtures={'GrooveAxis':(0.,0.,0.)})==(0.,0.,0.)
     assert graphs['DiffractionGratingMaterial'].evaluate('Delta',fixtures={'LoP':0.4,'VoP':-0.4})==0
-    print(f'PASS 16 materials / {total} nodes; {ui_defaults()} UI defaults; direction, range and arithmetic regressions')
+    print(f'PASS 16 materials / {total} nodes; {ui_defaults()} UI defaults; direction, range, base-color and arithmetic regressions')
 
 if __name__=='__main__':
     main()

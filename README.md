@@ -8,7 +8,7 @@
 
 ## 效果目录（全部已实现）
 
-| 效果 | 模型 / 近似 | 实现 | 几何 |
+| 效果 | 模型 / 近似 | 实现 | 适合观察的几何 |
 |---|---|---|---|
 | 薄膜干涉·肥皂泡 | Fresnel + Airy 级数光谱积分 | 厚度×视角 LUT | 球 |
 | 衍射光栅·CD | sinθi−sinθo = mλ/d 多阶合成 | sin差×密度 LUT | 微锥盘 |
@@ -32,12 +32,18 @@
 窗口默认 1280 × 820，最小 1060 × 680，采用三栏布局：
 
 - **左侧效果库（242 pt）**：16 种效果双列排列，纵向滚动；选中项带蓝色描边和勾选标记。
-- **中间实时预览**：随可用空间伸缩；RealityView 将视图边界转换到场景坐标，按模型的旋转包络等比缩放，避免模型侵入两侧控件。底部固定旋转开关与渲染状态。
+- **中间实时预览**：默认并排显示球体＋平面，“第二组”开关换为尺子＋光盘，总共四种形状。两个模型共享当前材质和参数；按两件模型的旋转包络统一缩放，避免侵入控件。球体自转，薄片与光盘小幅摆动以保持正面可见。底部固定预览设置、旋转开关与渲染状态。
 - **右侧参数面板（330 pt）**：独立纵向滚动，每个参数以卡片展示名称、实时数值、滑杆和上下限；原生滑杆至少保留 44 pt 高度。切换效果回到参数顶部，已调整的值继续由 AppModel 保留。
 
 效果说明位于参数末尾的折叠区，优先把操作空间留给调参。窗口最小尺寸由 `.windowResizability(.contentMinSize)` 约束，缩小时两侧通过滚动容纳内容。
 
-新版模拟器截图：[三栏参数工作区](artifacts/ui_workspace_lcd.png)。
+**材质基础色**：点击预览下方的颜色按钮，打开双行色板；提供黑、白、18% 灰、红、绿、蓝、青、品红、黄，以及“原始效果”。选色后默认以 35% 占比与光学颜色混合，可调到 100% 检查纯底色。“原始效果”恢复原来的光学颜色。颜色作用于模型材质，透明度及裁切仍由各效果决定；基础色与分组在切换效果时保留。
+
+底色混合在线性 sRGB 中进行：`mix(opticalColor, BaseColor, BaseAmount)`，再按原有 Intensity 控制效果强度；Intensity=0 显示所选基础色。这是用于外观比较的颜色混合，不是新增一套有色基底光谱模型。每个图只增加一个 mix 节点，不增加纹理或 LUT。
+
+新版模拟器截图：[球体＋平面](artifacts/preview-audit/basic-red.jpg)、[尺子＋光盘](artifacts/preview-audit/instruments-white.jpg)。
+
+本次验证：Debug／Release 构建通过；开启 Metal API Validation，16 个效果 × 两组模型 × 九种底色 × 三个占比的绑定检查通过；16 张材质图共 574 个节点通过静态与颜色混合检查。记录见 [预览运行日志](artifacts/preview-audit/runtime.log) 和 [材质检查日志](artifacts/preview-audit/material-validation.log)。
 
 ## 架构
 
@@ -58,7 +64,7 @@
 
 仅在首次访问效果时加载模板和依赖。薄膜、珍珠母、闪蝶使用同一个 ShaderGraph 模板的参数实例，16 种效果共 14 个运行时模板。光栅及几丁质等 LUT 在多个效果间共享。IOR 滑杆以 120 ms 合并连续输入，最多缓存 4 个 IOR 版本，旧请求不能覆盖最新值。其他效果的调参只改材质参数。
 
-场景同时保留一个实体，复用球、平面、尺子、光盘四种网格资源；暂停时跳过重复的逐帧姿态写入。视线相关的颜色计算仍在 ShaderGraph 中实时执行。
+场景同时保留两个实体，复用球、平面、尺子、光盘四种网格资源；两件模型共享同一个材质定义和 LUT。切换分组不加载材质，切换底色只写参数；暂停时跳过重复的逐帧姿态写入。视线相关的颜色计算仍在 ShaderGraph 中实时执行。
 
 ## 目录
 
@@ -71,6 +77,8 @@ RealityOpticsShaderLab/
 │   ├── OpticsLUT.metal            # GPU 光谱积分，half 权重 / float 相位
 │   ├── OpticsMeshes.swift         # 四种共享网格资源
 │   ├── ContentView.swift          # 三栏工作区、预览标题、旋转控制与状态
+│   ├── PreviewControlsView.swift  # 两组模型切换、基础色色板与占比
+│   ├── PreviewSettings.swift      # 四种形状、摆动姿态与线性 sRGB 基础色
 │   ├── EffectLibraryView.swift    # 双列效果库
 │   ├── ParameterPanelView.swift   # 独立滚动参数卡片与折叠说明
 │   ├── OpticsEffect.swift         # 16 种效果的名称、图标与机制说明
@@ -116,6 +124,9 @@ python3 Scripts/validate_materials.py
 
 # 本机 Metal 与 CPU 的逐 texel 对照（含半精度误差检查）
 python3 Scripts/verify_compute.py
+
+# Debug 应用安装后：全部材质 × 两组模型 × 九种底色；保存五张截图
+SIMCTL_CHILD_MTL_DEBUG_LAYER=1 python3 Scripts/capture_shader_audit.py --preview --output artifacts/preview-audit
 
 # 构建 + 模拟器运行
 xcodebuild -project RealityOpticsShaderLab.xcodeproj -scheme RealityOpticsShaderLab \

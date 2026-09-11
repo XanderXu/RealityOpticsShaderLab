@@ -31,10 +31,27 @@ struct SettingSpec: Identifiable {
 final class AppModel {
 
     var selectedEffect: OpticsEffect = .thinFilm
+    var previewGroup: PreviewGroup = .basic
+    var previewBaseColor: PreviewColor? {
+        didSet {
+            guard previewBaseColor != oldValue else { return }
+            for effect in OpticsEffect.allCases { pushPreviewAppearance(for: effect) }
+        }
+    }
+    private(set) var previewBaseAmount: Float = 0.35
+
+    func setPreviewBaseAmount(_ value: Float) {
+        guard value.isFinite else { return }
+        let clamped = min(max(value, 0), 1)
+        guard clamped != previewBaseAmount else { return }
+        previewBaseAmount = clamped
+        for effect in OpticsEffect.allCases { pushPreviewAppearance(for: effect) }
+    }
 
     init() {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1" {
+        if ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1"
+            || ProcessInfo.processInfo.environment["OPTICS_PREVIEW_AUDIT"] == "1" {
             isAnimating = false
         }
         #endif
@@ -173,7 +190,7 @@ final class AppModel {
     // MARK: - Master effect intensity
 
     /// Per-effect strength, remembered while switching between effects.
-    /// 0 renders the neutral gray slab, 1 is the physical look, >1 saturates.
+    /// 0 renders the selected base color, 1 is the optical look, >1 exaggerates it.
     private var intensities: [OpticsEffect: Float] = [:]
 
     func intensity(for effect: OpticsEffect) -> Float {
@@ -235,7 +252,7 @@ final class AppModel {
     func settingsFor(_ effect: OpticsEffect) -> [SettingSpec] {
         var specs = effectSettings(effect)
         // The master intensity leads every effect's panel: it scales how far
-        // the optical colors deviate from a neutral gray base (0 = off).
+        // the optical colors deviate from the selected base (0 = off).
         specs.insert(
             SettingSpec(id: "intensity", label: "Effect intensity", range: 0...2,
                         get: { [weak self] in self?.intensity(for: effect) ?? 1 },
@@ -528,6 +545,7 @@ final class AppModel {
             // Use current controls, not the values from when loading began.
             pushParameters(for: effect)
             pushIntensity(for: effect)
+            pushPreviewAppearance(for: effect)
         }
         loadTasks[effect] = task
         defer { loadTasks[effect] = nil }
@@ -586,7 +604,8 @@ final class AppModel {
                 }
                 // Allow the RealityView update and GPU shader pipeline to run.
                 try await Task.sleep(for: .seconds(1))
-                guard sceneRoot?.findEntity(named: entityName(for: effect)) != nil,
+                guard sceneRoot?.children.count == 2,
+                      previewGroup.shapes.allSatisfy({ sceneRoot?.findEntity(named: $0.rawValue) != nil }),
                       material(for: effect) != nil, parameterErrors.isEmpty else {
                     throw NSError(domain: "OpticsAudit", code: 2,
                                   userInfo: [NSLocalizedDescriptionKey: "Scene/binding failed: \(effect.rawValue)"])
@@ -691,46 +710,135 @@ final class AppModel {
         print("OPTICS_PERF_AUDIT PASS: lazy/coalesced resources, isolated material instances, cancelled selection, bounded IOR cache; templates=\(resources.templateCount), textures=\(resources.textureCount), textureBytes=\(resources.textureBytes)")
         fflush(stdout)
     }
+    func runPreviewAuditIfRequested() async throws {
+        guard ProcessInfo.processInfo.environment["OPTICS_PREVIEW_AUDIT"] == "1" else { return }
+        func check(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            if !condition() { throw NSError(domain: "OpticsPreview", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: message]) }
+        }
+        let savedEffect = selectedEffect
+        let savedColor = previewBaseColor
+        let savedAmount = previewBaseAmount
+        let savedGroup = previewGroup
+        let savedAnimation = isAnimating
+        defer {
+            selectedEffect = savedEffect
+            previewBaseColor = savedColor
+            setPreviewBaseAmount(savedAmount)
+            previewGroup = savedGroup
+            isAnimating = savedAnimation
+            syncSceneObjects()
+            fflush(stdout)
+        }
+        isAnimating = false
+        try await ensureLoaded(selectedEffect)
+        for _ in 0..<100 where sceneRoot == nil { try await Task.sleep(for: .milliseconds(20)) }
+        guard let root = sceneRoot else { throw NSError(domain: "OpticsPreview", code: 2) }
+
+        func checkPair() throws {
+            syncSceneObjects()
+            syncSceneObjects() // Repeated updates must not add duplicate samples.
+            try check(root.children.count == 2, "Expected exactly two live samples")
+            for shape in previewGroup.shapes {
+                let sample = root.children.first(where: { $0.name == shape.rawValue })
+                let material = sample?.components[ModelComponent.self]?.materials.first as? ShaderGraphMaterial
+                try check(material != nil, "Missing sample material: \(shape.rawValue)")
+                try check(material?.getParameter(name: "BaseAmount") == .float(previewBaseColor == nil ? 0 : previewBaseAmount), "Stale sample base amount")
+                guard case .color(let actualColor) = material?.getParameter(name: "BaseColor"),
+                      let components = actualColor.converted(to: PreviewColor.materialColorSpace, intent: .relativeColorimetric, options: nil)?.components else {
+                    throw NSError(domain: "OpticsPreview", code: 3)
+                }
+                let expected = (previewBaseColor?.materialColor ?? PreviewColor.originalMaterialColor).components!
+                try check(components.count == expected.count && zip(components, expected).allSatisfy { abs($0 - $1) < 0.000001 }, "Stale sample base color")
+                try check(material?.getParameter(name: "Intensity") == .float(intensity(for: selectedEffect)), "Samples differ in optical intensity")
+            }
+        }
+
+        // These controls must work during a cold start without warming other effects.
+        let coldLoads = resources.templateLoadCount
+        let coldBuilds = resources.textureBuildCount
+        for group in PreviewGroup.allCases {
+            previewGroup = group
+            for color in PreviewColor.allCases {
+                previewBaseColor = color
+                try checkPair()
+            }
+        }
+        try check(resources.templateLoadCount == coldLoads && resources.textureBuildCount == coldBuilds, "Preview changes rebuilt GPU resources")
+
+        // Every template (including shared film instances) binds to both shape groups.
+        for effect in OpticsEffect.allCases {
+            selectedEffect = effect
+            try await ensureLoaded(effect)
+            for group in PreviewGroup.allCases {
+                previewGroup = group
+                for color in PreviewColor.allCases {
+                    previewBaseColor = color
+                    try checkPair()
+                    for amount: Float in [0, 0.35, 1] {
+                        setPreviewBaseAmount(amount)
+                        try checkPair()
+                    }
+                }
+            }
+        }
+        try check(parameterErrors.isEmpty, "Preview shader binding failed")
+        try check(resources.templateCount == 14, "Paired samples duplicated material templates")
+        print("OPTICS_PREVIEW_AUDIT bindings: 16 effects / 2 groups / 9 colors / 3 amounts; two live samples; no color/group resource builds")
+
+        func capture(_ name: String) async throws {
+            await prepareSelectedEffect()
+            try checkPair()
+            try await Task.sleep(for: .seconds(1))
+            print("OPTICS_PREVIEW_AUDIT CAPTURE \(name)")
+            fflush(stdout)
+            try await Task.sleep(for: .seconds(3))
+        }
+        selectedEffect = .thinFilm
+        previewGroup = .basic
+        previewBaseColor = nil
+        try await capture("basic-original")
+        previewBaseColor = .red
+        setPreviewBaseAmount(0.35)
+        try await capture("basic-red")
+        previewBaseColor = .gray
+        setPreviewBaseAmount(1)
+        try await capture("basic-gray-only")
+        selectedEffect = .grating
+        previewGroup = .instruments
+        previewBaseColor = nil
+        try await capture("instruments-original")
+        previewBaseColor = .white
+        setPreviewBaseAmount(0.35)
+        try await capture("instruments-white")
+        print("OPTICS_PREVIEW_AUDIT PASS: paired geometry, all material base colors, original restore, shared resources")
+        fflush(stdout)
+    }
     #endif
 
     // MARK: - Scene object management
 
-    private func entityName(for effect: OpticsEffect) -> String {
-        switch effect {
-        case .thinFilm: return "Bubble"
-        case .grating: return "CompactDisc"
-        case .nacre: return "NacreSphere"
-        case .opal: return "OpalSphere"
-        case .birefringence: return "BirefrRuler"
-        case .speckle: return "SpeckleSphere"
-        case .morpho: return "MorphoWing"
-        case .beetle: return "BeetleShell"
-        case .feather: return "FeatherVane"
-        case .hologram: return "HoloCard"
-        case .lcd: return "LCDPanel"
-        case .newton: return "NewtonPlate"
-        case .pearl: return "PearlOrb"
-        case .dragonfly: return "DragonflyWing"
-        case .chameleon: return "ChameleonSkin"
-        case .scarab: return "ScarabShell"
-        }
-    }
-
-    /// Reuse four mesh resources across all 16 effects; only one entity is live.
+    /// Both samples share the selected material and its LUTs; only two are live.
     func syncSceneObjects() {
         guard let root = sceneRoot else { return }
-        let effect = selectedEffect
-        let keep = entityName(for: effect)
-        if let current = root.children.first, current.name != keep { current.removeFromParent() }
-        guard let material = material(for: effect) else { return }
-        if let current = root.children.first {
-            assign(material, to: current)
+        guard let material = material(for: selectedEffect) else {
+            root.children.removeAll()
             return
         }
+        let shapes = previewGroup.shapes
+        for child in Array(root.children) where !shapes.contains(where: { $0.rawValue == child.name }) {
+            child.removeFromParent()
+        }
         do {
-            let object = try meshes.makeEntity(for: effect, material: material)
-            object.name = keep
-            root.addChild(object)
+            for (index, shape) in shapes.enumerated() {
+                if let current = root.children.first(where: { $0.name == shape.rawValue }) {
+                    assign(material, to: current)
+                } else {
+                    let object = try meshes.makeEntity(for: shape, material: material)
+                    object.position = SIMD3(index == 0 ? -0.17 : 0.17, 0, 0)
+                    root.addChild(object)
+                }
+            }
         } catch { report(error: "模型加载失败：\(error.localizedDescription)") }
     }
 
@@ -981,6 +1089,16 @@ final class AppModel {
         guard var m = material(for: effect) else { return }
         setParam(&m, "Intensity", .float(intensity(for: effect)))
         store(m, for: effect)
+        materialRevision += 1
+    }
+
+    private func pushPreviewAppearance(for effect: OpticsEffect) {
+        guard var material = material(for: effect) else { return }
+        // A nil selection restores the exact original neutral-gray intensity base.
+        let color = previewBaseColor?.materialColor ?? PreviewColor.originalMaterialColor
+        setParam(&material, "BaseColor", .color(color))
+        setParam(&material, "BaseAmount", .float(previewBaseColor == nil ? 0 : previewBaseAmount))
+        store(material, for: effect)
         materialRevision += 1
     }
 
