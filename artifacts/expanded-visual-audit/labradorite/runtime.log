@@ -1,0 +1,8 @@
+2026-09-11 23:28:02.885 RealityOpticsShaderLab[31324:19878926] Metal API Validation Enabled
+OPTICS_PERF LUT GPU morpho: 0.017218708 seconds
+OPTICS_PERF FIRST_READY labradorite: 1.54129275 seconds
+OPTICS_PERF SELECT labradorite: 1.019707 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_AUDIT DEFAULT labradorite 6 parameters
+OPTICS_AUDIT MIN labradorite 6 parameters
+OPTICS_AUDIT MAX labradorite 6 parameters
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

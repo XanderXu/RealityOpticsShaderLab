@@ -1,0 +1,7 @@
+2026-09-11 23:26:57.787 RealityOpticsShaderLab[31126:19877070] Metal API Validation Enabled
+OPTICS_PERF FIRST_READY starGem: 1.595167 seconds
+OPTICS_PERF SELECT starGem: 1.047737333 seconds; templates=1, textures=0, textureBytes=0
+OPTICS_AUDIT DEFAULT starGem 5 parameters
+OPTICS_AUDIT MIN starGem 5 parameters
+OPTICS_AUDIT MAX starGem 5 parameters
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

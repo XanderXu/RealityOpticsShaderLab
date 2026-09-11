@@ -1,12 +1,16 @@
 # RealityOpticsShaderLab — 用 RealityKit ShaderGraph + LowLevelTexture 实现波动光学效果库
 
-一个 visionOS 演示 App，实时呈现 **16 种波动光学与生物结构色**效果，通过效果库切换，每个效果带独立参数面板。薄膜、光栅与偏振延迟使用光谱模型，生物结构色等采用注明限制的外观近似。
+一个 visionOS 演示 App，实时呈现 **28 种光学与结构色**效果，通过效果库切换，每个效果带独立参数面板。薄膜、光栅与偏振延迟使用光谱模型，生物结构色等采用注明限制的外观近似。
 
 2026-09-11 已完成全量计算与材质审查，修复坐标系、标准色度数据、牛顿环介质、白光相位、边界采样和数值稳定性等问题。详见 [逐项审查与验证记录](docs/SHADER_AUDIT.md)。
 
 性能版已改为按选中效果懒加载、GPU Compute 生成 LUT 和共享材质实例；模拟器首个效果约 1.3 秒就绪。详见 [性能改动、实测与复现](docs/PERFORMANCE.md)。
 
 ## 效果目录（全部已实现）
+
+效果按六组组织：薄膜与镀膜、结构色与晕彩、珠光与柔光、定向反光、偏振与体色、衍射与散斑。新增猫眼、星光宝石、月光石、拉长石、日光石、变石、多色性、二向色玻璃、逆反射、油膜、阳极氧化钛、镜头镀膜。完整分组、操作方法及物理近似边界见 [新增效果说明](docs/EXTENDED_EFFECTS.md)。
+
+以下为原有 16 项的模型说明：
 
 | 效果 | 模型 / 近似 | 实现 | 适合观察的几何 |
 |---|---|---|---|
@@ -27,11 +31,13 @@
 | 变色龙皮肤 | 晶域主动变色 + 视角色相偏移 | gratingLUT + 晶域相位 | 球 |
 | 圆偏振金龟子 | 左右旋色支与检偏器混合 | 双薄膜采样 + R→L 示意混合 | 椭球 |
 
+最近一次复查修复了背面入射、日光石随机分布、多色性晶轴控制及验证盲点，并将新增膜类改为单次纹理采样；详见 [复查与性能修复](docs/REVIEW_FIXES.md)。
+
 ## 界面布局
 
 窗口默认 1280 × 820，最小 1060 × 680，采用三栏布局：
 
-- **左侧效果库（242 pt）**：16 种效果双列排列，纵向滚动；选中项带蓝色描边和勾选标记。
+- **左侧效果库（242 pt）**：28 种效果按六组双列排列，组标题固定，支持名称/英文标识/组名搜索，纵向滚动；选中项带蓝色描边和勾选标记。
 - **中间实时预览**：默认并排显示球体＋平面，“第二组”开关换为尺子＋光盘，总共四种形状。两个模型共享当前材质和参数；按两件模型的旋转包络统一缩放，避免侵入控件。球体自转，薄片与光盘小幅摆动以保持正面可见。底部固定预览设置、旋转开关与渲染状态。
 - **右侧参数面板（330 pt）**：独立纵向滚动，每个参数以卡片展示名称、实时数值、滑杆和上下限；原生滑杆至少保留 44 pt 高度。切换效果回到参数顶部，已调整的值继续由 AppModel 保留。
 
@@ -43,7 +49,7 @@
 
 新版模拟器截图：[球体＋平面](artifacts/preview-audit/basic-red.jpg)、[尺子＋光盘](artifacts/preview-audit/instruments-white.jpg)。
 
-本次验证：Debug／Release 构建通过；开启 Metal API Validation，16 个效果 × 两组模型 × 九种底色 × 三个占比的绑定检查通过；16 张材质图共 574 个节点通过静态与颜色混合检查。记录见 [预览运行日志](artifacts/preview-audit/runtime.log) 和 [材质检查日志](artifacts/preview-audit/material-validation.log)。
+上一轮预览验证（扩展前）：Debug／Release 构建通过；开启 Metal API Validation，16 个效果 × 两组模型 × 九种底色 × 三个占比的绑定检查通过；16 张材质图共 574 个节点通过静态与颜色混合检查。记录见 [预览运行日志](artifacts/preview-audit/runtime.log) 和 [材质检查日志](artifacts/preview-audit/material-validation.log)。
 
 ## 架构
 
@@ -62,7 +68,7 @@
 
 正常路径在 GPU 生成 LUT：颜色权重使用 half4，光学相位、Fresnel 和光谱累加保留 float32，结果存为 RGBA16F。CPU 物理包作为独立数值参考及 Compute pipeline 不可用时的回退。GPU 完成以异步回调通知，不在主线程同步等待。
 
-仅在首次访问效果时加载模板和依赖。薄膜、珍珠母、闪蝶使用同一个 ShaderGraph 模板的参数实例，16 种效果共 14 个运行时模板。光栅及几丁质等 LUT 在多个效果间共享。IOR 滑杆以 120 ms 合并连续输入，最多缓存 4 个 IOR 版本，旧请求不能覆盖最新值。其他效果的调参只改材质参数。
+仅在首次访问效果时加载模板和依赖。薄膜、珍珠母、闪蝶使用同一个 ShaderGraph 模板的参数实例，猫眼/星光和新增膜类也分别共享模板，28 种效果共 22 个运行时模板。光栅及几丁质等 LUT 在多个效果间共享。IOR 滑杆以 120 ms 合并连续输入，最多缓存 4 个 IOR 版本，旧请求不能覆盖最新值。其他效果的调参只改材质参数。
 
 场景同时保留两个实体，复用球、平面、尺子、光盘四种网格资源；两件模型共享同一个材质定义和 LUT。切换分组不加载材质，切换底色只写参数；暂停时跳过重复的逐帧姿态写入。视线相关的颜色计算仍在 ShaderGraph 中实时执行。
 
@@ -79,20 +85,22 @@ RealityOpticsShaderLab/
 │   ├── ContentView.swift          # 三栏工作区、预览标题、旋转控制与状态
 │   ├── PreviewControlsView.swift  # 两组模型切换、基础色色板与占比
 │   ├── PreviewSettings.swift      # 四种形状、摆动姿态与线性 sRGB 基础色
-│   ├── EffectLibraryView.swift    # 双列效果库
+│   ├── EffectLibraryView.swift    # 分组搜索、双列效果库
 │   ├── ParameterPanelView.swift   # 独立滚动参数卡片与折叠说明
-│   ├── OpticsEffect.swift         # 16 种效果的名称、图标与机制说明
+│   ├── ExtendedEffectControls.swift # 新增 12 项的参数范围与默认值
+│   ├── OpticsEffect.swift         # 28 种效果的分组、名称、图标与机制说明
 │   ├── OpticsSceneView.swift      # 自适应 RealityView、转台式自转
 │   ├── DiscMesh.swift             # 微锥形 CD 网格（UV 副切线提供径向，绕序与法线一致）
 │   └── LUTTextureFactory.swift    # GPU Compute → LowLevelTexture / CPU 回退
 ├── Packages/OpticsPhysics/        # 纯 Swift 物理包（swift test 可在 macOS 直接跑）
 │   ├── Spectrum.swift             # 官方 CIE CMF / D65 / 预计算线性 RGB 积分权重
+│   ├── LayeredFilm.swift          # 非对称膜、金属基底与多层膜的独立复数参考
 │   ├── ThinFilm.swift             # 三层膜反射率光谱
 │   ├── DiffractionGrating.swift   # 光栅方程 + 阶数合成
 │   ├── LUTBuilder.swift           # CPU 参考：光谱 LUT + Float16
 │   └── OpticsLUT.swift             # 缓存键、尺寸、GPU 参数和 CPU 参考入口
 ├── Packages/OpticsContent/        # 材质包（.usda 以松散资源随 bundle 发布）
-│   └── Materials/*.usda          # 16 个材质图
+│   └── Materials/*.usda          # 24 份材质图，运行时使用 22 份
 ├── Scripts/                       # 材质图检查与模拟器自动截图
 ├── docs/SHADER_AUDIT.md            # 全量修复说明与验证边界
 └── artifacts/                     # 模拟器验收截图与运行日志
@@ -116,10 +124,10 @@ RealityOpticsShaderLab/
 ## 构建与运行
 
 ```bash
-# 物理单测（34 个，host 直接跑）
+# 物理单测（41 个，host 直接跑）
 swift test --package-path Packages/OpticsPhysics -c release
 
-# 16 个材质的连接、类型、坐标、边界与参数默认值检查
+# 24 份材质图的连接、类型、坐标、边界与参数默认值检查
 python3 Scripts/validate_materials.py
 
 # 本机 Metal 与 CPU 的逐 texel 对照（含半精度误差检查）

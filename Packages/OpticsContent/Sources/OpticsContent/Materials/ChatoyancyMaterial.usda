@@ -1,0 +1,645 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "ChatoyancyMaterial"
+    {
+        float inputs:Sharpness = 70
+        float inputs:AxisAngle = 0
+        float inputs:LightAngle = 18
+        float inputs:Gain = 1
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        float inputs:StarAmount = 0
+        color3f inputs:BodyTint = (0.16, 0.07, 0.018)
+        color3f inputs:ShineTint = (1.0, 0.83, 0.38)
+        token outputs:mtlx:surface.connect = </Root/ChatoyancyMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/ChatoyancyMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.002
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "FaceSign"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/ChatoyancyMaterial/NdotV.outputs:out>
+            float inputs:value2 = 0.0
+            float inputs:in1 = 1.0
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "FacingNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/Normal.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/FaceSign.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial.inputs:LightAngle>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "LightX"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightZ"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WorldLight"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/LightX.outputs:out>
+            float inputs:in2 = 0.0
+            float inputs:in3.connect = </Root/ChatoyancyMaterial/LightZ.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ObjectLight"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/ChatoyancyMaterial/WorldLight.outputs:out>
+            string inputs:fromspace = "world"
+            string inputs:tospace = "object"
+            float3 outputs:out
+        }
+
+        def Shader "LightSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/ObjectLight.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/ObjectLight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/LightSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "LightLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/LightSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Light"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/ObjectLight.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/LightLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HalfSum"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/Light.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/View.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HalfSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/HalfSum.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/HalfSum.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "HalfSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/HalfSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "HalfLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/HalfSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/HalfSum.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/HalfLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "NLRaw"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/Light.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NL"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/NLRaw.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "AxisRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial.inputs:AxisAngle>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "NormalOffset"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/Half.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Axis0Angle"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/AxisRadians.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Cos0"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis0Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Sin0"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis0Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Axis0"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Cos0.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/Sin0.outputs:out>
+            float inputs:in3 = 0.0
+            float3 outputs:out
+        }
+
+        def Shader "FiberDot0"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/NormalOffset.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/Axis0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandSquare0"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/FiberDot0.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/FiberDot0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandInverse0"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/BandSquare0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandBase0"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/BandInverse0.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "ValidBand0"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/BandBase0.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial.inputs:Sharpness>
+            float outputs:out
+        }
+
+        def Shader "Axis1Angle"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/AxisRadians.outputs:out>
+            float inputs:in2 = 1.0471975512
+            float outputs:out
+        }
+
+        def Shader "Cos1"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis1Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Sin1"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis1Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Axis1"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Cos1.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/Sin1.outputs:out>
+            float inputs:in3 = 0.0
+            float3 outputs:out
+        }
+
+        def Shader "FiberDot1"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/NormalOffset.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/Axis1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandSquare1"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/FiberDot1.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/FiberDot1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandInverse1"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/BandSquare1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandBase1"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/BandInverse1.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "ValidBand1"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/BandBase1.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial.inputs:Sharpness>
+            float outputs:out
+        }
+
+        def Shader "Axis2Angle"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/AxisRadians.outputs:out>
+            float inputs:in2 = 2.0943951024
+            float outputs:out
+        }
+
+        def Shader "Cos2"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis2Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Sin2"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/Axis2Angle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Axis2"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Cos2.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/Sin2.outputs:out>
+            float inputs:in3 = 0.0
+            float3 outputs:out
+        }
+
+        def Shader "FiberDot2"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChatoyancyMaterial/NormalOffset.outputs:out>
+            float3 inputs:in2.connect = </Root/ChatoyancyMaterial/Axis2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandSquare2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/FiberDot2.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/FiberDot2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandInverse2"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/BandSquare2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BandBase2"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ChatoyancyMaterial/BandInverse2.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "ValidBand2"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/BandBase2.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial.inputs:Sharpness>
+            float outputs:out
+        }
+
+        def Shader "Cross"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/ValidBand0.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/ValidBand1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Star"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Cross.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/ValidBand2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Extra"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Star.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/ValidBand0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "StarExtra"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Extra.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial.inputs:StarAmount>
+            float outputs:out
+        }
+
+        def Shader "Band"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/ValidBand0.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/StarExtra.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LitBand"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/Band.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/NL.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Shine"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/LitBand.outputs:out>
+            float inputs:in2 = 1.6
+            float outputs:out
+        }
+
+        def Shader "BodyFacing"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/NV.outputs:out>
+            float inputs:in2 = 0.55
+            float outputs:out
+        }
+
+        def Shader "BodyShade"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChatoyancyMaterial/BodyFacing.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "Body"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChatoyancyMaterial.inputs:BodyTint>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/BodyShade.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "BandColor"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChatoyancyMaterial.inputs:ShineTint>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial/Shine.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Final"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ChatoyancyMaterial/Body.outputs:out>
+            color3f inputs:in2.connect = </Root/ChatoyancyMaterial/BandColor.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ChatoyancyMaterial/Final.outputs:out>
+            float inputs:in2.connect = </Root/ChatoyancyMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/ChatoyancyMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/ChatoyancyMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/ChatoyancyMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/ChatoyancyMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/ChatoyancyMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/ChatoyancyMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/ChatoyancyMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/ChatoyancyMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

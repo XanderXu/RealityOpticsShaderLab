@@ -2,10 +2,12 @@ import SwiftUI
 
 struct EffectLibraryView: View {
     @Environment(AppModel.self) private var model
+    @State private var searchText = ""
     private let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Label("效果库", systemImage: "square.grid.2x2")
                     .font(.headline)
@@ -16,16 +18,53 @@ struct EffectLibraryView: View {
             }
             .padding(18)
 
+            TextField("搜索效果", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                .accessibilityIdentifier("effects.search")
+
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
-                    LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(OpticsEffect.allCases) { effect in
-                            effectCard(effect)
-                                .id(effect.id)
+                    LazyVGrid(columns: columns, spacing: 8, pinnedViews: [.sectionHeaders]) {
+                        ForEach(OpticsEffectGroup.allCases) { group in
+                            let effects = group.effects.filter {
+                                query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+                                    || $0.rawValue.localizedCaseInsensitiveContains(query)
+                                    || group.title.localizedCaseInsensitiveContains(query)
+                            }
+                            if !effects.isEmpty {
+                                Section {
+                                    ForEach(effects) { effect in
+                                        effectCard(effect).id(effect.id)
+                                    }
+                                } header: {
+                                    HStack {
+                                        Text(group.title)
+                                        Spacer()
+                                        Text("\(effects.count)").monospacedDigit()
+                                    }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.vertical, 9)
+                                    .padding(.horizontal, 8)
+                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                                }
+                            }
+                        }
+                        if !query.isEmpty && !OpticsEffect.allCases.contains(where: {
+                            $0.title.localizedCaseInsensitiveContains(query)
+                                || $0.rawValue.localizedCaseInsensitiveContains(query)
+                                || $0.group.title.localizedCaseInsensitiveContains(query)
+                        }) {
+                            Text("没有匹配的效果").font(.subheadline).foregroundStyle(.secondary).padding()
                         }
                     }
                     .padding(.horizontal, 12)
                     .padding(.bottom, 14)
+                }
+                .onChange(of: model.selectedEffect) { _, effect in
+                    proxy.scrollTo(effect.id)
                 }
                 .onAppear {
                     proxy.scrollTo(model.selectedEffect.id)

@@ -1,0 +1,128 @@
+2026-09-11 23:19:39.211 RealityOpticsShaderLab[28875:19860639] Metal API Validation Enabled
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.013456041 seconds
+OPTICS_PERF FIRST_READY thinFilm: 1.3319425 seconds
+OPTICS_PERF SELECT thinFilm: 0.829664208 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_AUDIT DEFAULT thinFilm 7 parameters
+OPTICS_PERF LUT GPU film(ior: 1.2): 0.020104041 seconds
+OPTICS_AUDIT MIN thinFilm 7 parameters
+OPTICS_PERF LUT GPU film(ior: 1.45): 0.016096084 seconds
+OPTICS_AUDIT MAX thinFilm 7 parameters
+OPTICS_PERF LUT GPU grating: 0.02768125 seconds
+OPTICS_PERF SELECT grating: 0.209872834 seconds; templates=2, textures=4, textureBytes=1835008
+OPTICS_AUDIT DEFAULT grating 5 parameters
+OPTICS_AUDIT MIN grating 5 parameters
+OPTICS_AUDIT MAX grating 5 parameters
+OPTICS_PERF LUT GPU nacre: 0.028245958 seconds
+OPTICS_PERF SELECT nacre: 0.095073125 seconds; templates=2, textures=5, textureBytes=2359296
+OPTICS_AUDIT DEFAULT nacre 5 parameters
+OPTICS_AUDIT MIN nacre 5 parameters
+OPTICS_AUDIT MAX nacre 5 parameters
+OPTICS_PERF SELECT opal: 0.204057333 seconds; templates=3, textures=5, textureBytes=2359296
+OPTICS_AUDIT DEFAULT opal 4 parameters
+OPTICS_AUDIT MIN opal 4 parameters
+OPTICS_AUDIT MAX opal 4 parameters
+OPTICS_PERF LUT GPU birefringence: 0.027670958 seconds
+OPTICS_PERF SELECT birefringence: 0.206571209 seconds; templates=4, textures=6, textureBytes=2367488
+OPTICS_AUDIT DEFAULT birefringence 4 parameters
+OPTICS_AUDIT MIN birefringence 4 parameters
+OPTICS_AUDIT MAX birefringence 4 parameters
+OPTICS_PERF SELECT speckle: 0.199741334 seconds; templates=5, textures=6, textureBytes=2367488
+OPTICS_AUDIT DEFAULT speckle 5 parameters
+OPTICS_AUDIT MIN speckle 5 parameters
+OPTICS_AUDIT MAX speckle 5 parameters
+OPTICS_PERF LUT GPU morpho: 0.0275675 seconds
+OPTICS_PERF SELECT morpho: 0.093136125 seconds; templates=5, textures=7, textureBytes=2891776
+OPTICS_AUDIT DEFAULT morpho 4 parameters
+OPTICS_AUDIT MIN morpho 4 parameters
+OPTICS_AUDIT MAX morpho 4 parameters
+OPTICS_PERF SELECT beetle: 0.208010833 seconds; templates=6, textures=7, textureBytes=2891776
+OPTICS_AUDIT DEFAULT beetle 4 parameters
+OPTICS_AUDIT MIN beetle 4 parameters
+OPTICS_AUDIT MAX beetle 4 parameters
+OPTICS_PERF SELECT feather: 0.216665791 seconds; templates=7, textures=7, textureBytes=2891776
+OPTICS_AUDIT DEFAULT feather 5 parameters
+OPTICS_AUDIT MIN feather 5 parameters
+OPTICS_AUDIT MAX feather 5 parameters
+OPTICS_PERF SELECT hologram: 0.221853833 seconds; templates=8, textures=7, textureBytes=2891776
+OPTICS_AUDIT DEFAULT hologram 5 parameters
+OPTICS_AUDIT MIN hologram 5 parameters
+OPTICS_AUDIT MAX hologram 5 parameters
+OPTICS_PERF SELECT lcd: 0.204727333 seconds; templates=9, textures=7, textureBytes=2891776
+OPTICS_AUDIT DEFAULT lcd 5 parameters
+OPTICS_AUDIT MIN lcd 5 parameters
+OPTICS_AUDIT MAX lcd 5 parameters
+OPTICS_PERF LUT GPU newton: 0.007959791 seconds
+OPTICS_PERF SELECT newton: 0.173874083 seconds; templates=10, textures=8, textureBytes=3940352
+OPTICS_AUDIT DEFAULT newton 4 parameters
+OPTICS_AUDIT MIN newton 4 parameters
+OPTICS_AUDIT MAX newton 4 parameters
+OPTICS_PERF SELECT pearl: 0.198796792 seconds; templates=11, textures=8, textureBytes=3940352
+OPTICS_AUDIT DEFAULT pearl 5 parameters
+OPTICS_AUDIT MIN pearl 5 parameters
+OPTICS_AUDIT MAX pearl 5 parameters
+OPTICS_PERF SELECT dragonfly: 0.213325958 seconds; templates=12, textures=8, textureBytes=3940352
+OPTICS_AUDIT DEFAULT dragonfly 6 parameters
+OPTICS_AUDIT MIN dragonfly 6 parameters
+OPTICS_AUDIT MAX dragonfly 6 parameters
+OPTICS_PERF SELECT chameleon: 0.223436833 seconds; templates=13, textures=8, textureBytes=3940352
+OPTICS_AUDIT DEFAULT chameleon 5 parameters
+OPTICS_AUDIT MIN chameleon 5 parameters
+OPTICS_AUDIT MAX chameleon 5 parameters
+OPTICS_PERF SELECT scarab: 0.216001208 seconds; templates=14, textures=8, textureBytes=3940352
+OPTICS_AUDIT DEFAULT scarab 5 parameters
+OPTICS_AUDIT MIN scarab 5 parameters
+OPTICS_AUDIT MAX scarab 5 parameters
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.coating): 0.016292833 seconds
+OPTICS_PERF SELECT lensCoating: 0.226774791 seconds; templates=15, textures=9, textureBytes=4464640
+OPTICS_AUDIT DEFAULT lensCoating 4 parameters
+OPTICS_AUDIT MIN lensCoating 4 parameters
+OPTICS_AUDIT MAX lensCoating 4 parameters
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.titanium): 0.00644525 seconds
+OPTICS_PERF SELECT titanium: 0.054111542 seconds; templates=15, textures=10, textureBytes=4988928
+OPTICS_AUDIT DEFAULT titanium 4 parameters
+OPTICS_AUDIT MIN titanium 4 parameters
+OPTICS_AUDIT MAX titanium 4 parameters
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.oil): 0.01903425 seconds
+OPTICS_PERF SELECT oilFilm: 0.066059791 seconds; templates=15, textures=11, textureBytes=5513216
+OPTICS_AUDIT DEFAULT oilFilm 4 parameters
+OPTICS_AUDIT MIN oilFilm 4 parameters
+OPTICS_AUDIT MAX oilFilm 4 parameters
+OPTICS_PERF SELECT retroreflective: 0.190624666 seconds; templates=16, textures=11, textureBytes=5513216
+OPTICS_AUDIT DEFAULT retroreflective 4 parameters
+OPTICS_AUDIT MIN retroreflective 4 parameters
+OPTICS_AUDIT MAX retroreflective 4 parameters
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.dichroic): 0.020793125 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.dichroicTransmission): 0.037916209 seconds
+OPTICS_PERF SELECT dichroic: 0.123827 seconds; templates=16, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT dichroic 5 parameters
+OPTICS_AUDIT MIN dichroic 5 parameters
+OPTICS_AUDIT MAX dichroic 5 parameters
+OPTICS_PERF SELECT pleochroism: 0.391940125 seconds; templates=17, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT pleochroism 4 parameters
+OPTICS_AUDIT MIN pleochroism 4 parameters
+OPTICS_AUDIT MAX pleochroism 4 parameters
+OPTICS_PERF SELECT alexandrite: 0.356554666 seconds; templates=18, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT alexandrite 4 parameters
+OPTICS_AUDIT MIN alexandrite 4 parameters
+OPTICS_AUDIT MAX alexandrite 4 parameters
+OPTICS_PERF SELECT sunstone: 0.418358542 seconds; templates=19, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT sunstone 6 parameters
+OPTICS_AUDIT MIN sunstone 6 parameters
+OPTICS_AUDIT MAX sunstone 6 parameters
+OPTICS_PERF SELECT labradorite: 0.404762917 seconds; templates=20, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT labradorite 6 parameters
+OPTICS_AUDIT MIN labradorite 6 parameters
+OPTICS_AUDIT MAX labradorite 6 parameters
+OPTICS_PERF SELECT moonstone: 0.446448208 seconds; templates=21, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT moonstone 5 parameters
+OPTICS_AUDIT MIN moonstone 5 parameters
+OPTICS_AUDIT MAX moonstone 5 parameters
+OPTICS_PERF SELECT starGem: 0.459648958 seconds; templates=22, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT starGem 5 parameters
+OPTICS_AUDIT MIN starGem 5 parameters
+OPTICS_AUDIT MAX starGem 5 parameters
+OPTICS_PERF SELECT catEye: 0.039910083 seconds; templates=22, textures=13, textureBytes=6561792
+OPTICS_AUDIT DEFAULT catEye 5 parameters
+OPTICS_AUDIT MIN catEye 5 parameters
+OPTICS_AUDIT MAX catEye 5 parameters
+OPTICS_AUDIT PASS: 28 materials, default/min/max scenes, no binding failures

@@ -19,6 +19,7 @@ struct VerifyCompute {
             length: Spectrum.packedHalfRGBWeights.count * 2, options: .storageModeShared)!
         let keys: [OpticsLUT] = [.film(ior: 1.333), .film(ior: 1.2), .film(ior: 1.45),
                                  .morpho, .nacre, .grating, .birefringence, .newton]
+            + LayeredFilm.allCases.map { .layered($0) }
         // Odd dimensions exercise padded edge groups and the kernel's bounds check.
         let cases = keys.map { (key: $0, width: $0.width, height: $0.height) }
             + [(key: OpticsLUT.film(ior: 1.333), width: 257, height: 129)]
@@ -70,7 +71,7 @@ struct VerifyCompute {
                     for c in 0..<4 {
                         let reference = Float(Float16(bitPattern: cpu[(y * width + x) * 4 + c]))
                         let actual = Float(Float16(bitPattern: raw[((height - 1 - y) * width + x) * 4 + c]))
-                        guard actual.isFinite && actual >= 0 else { fatalError("Nonfinite/negative output: \(key)") }
+                        guard actual.isFinite && (actual >= 0 || key == .layered(.dichroic)) else { fatalError("Nonfinite/negative output: \(key)") }
                         if c == 3 { precondition(actual == 1); continue }
                         let error = abs(actual - reference)
                         maxError = max(maxError, error)
@@ -79,11 +80,34 @@ struct VerifyCompute {
                     }
                 }
             }
+            if key == .layered(.dichroic) {
+                let transmission = LayeredFilm.dichroicTransmission.pixels()
+                let white = Spectrum.rgb(samples: [Float](repeating: 1, count: Spectrum.sampleCount))
+                var errorMax: Float = 0
+                var errorSquared: Double = 0
+                for y in 0..<height {
+                    for x in 0..<width {
+                        for c in 0..<3 {
+                            let reflected = Float(Float16(bitPattern: raw[((height-1-y)*width+x)*4+c]))
+                            let actual = max(white[c]-reflected, 0)
+                            let expected = Float(Float16(bitPattern: transmission[(y*width+x)*4+c]))
+                            let delta = abs(actual-expected)
+                            errorMax = max(errorMax,delta)
+                            errorSquared += Double(delta*delta)
+                        }
+                    }
+                }
+                let complementRMSE = sqrt(errorSquared/Double(width*height*3))
+                let pass = errorMax <= 0.003 && complementRMSE <= 0.0002
+                failed = failed || !pass
+                print("\(pass ? "PASS" : "FAIL") single-LUT transmission vs independent integration: max=\(errorMax), RMSE=\(complementRMSE)")
+            }
             let rmse = sqrt(squared / Double(count))
             let passed = maxError <= 0.003 && rmse <= 0.0002
             failed = failed || !passed
             print("\(passed ? "PASS" : "FAIL") \(key) \(width)x\(height): max=\(maxError), RMSE=\(rmse), CPU=\(cpuTime), GPU submission+wait=\(gpuTime)")
         }
+        fflush(stdout)
         if failed { throw NSError(domain: "ComputeAudit", code: 2, userInfo: [NSLocalizedDescriptionKey: "GPU/CPU tolerance exceeded"]) }
         print("PASS all full-resolution LUTs and padded edge groups; half weights/storage, float optical arithmetic; verified vertical orientation")
     }

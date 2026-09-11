@@ -1,0 +1,7 @@
+2026-09-11 23:28:45.508 RealityOpticsShaderLab[31446:19880201] Metal API Validation Enabled
+OPTICS_PERF FIRST_READY catEye: 1.320031834 seconds
+OPTICS_PERF SELECT catEye: 0.811956834 seconds; templates=1, textures=0, textureBytes=0
+OPTICS_AUDIT DEFAULT catEye 5 parameters
+OPTICS_AUDIT MIN catEye 5 parameters
+OPTICS_AUDIT MAX catEye 5 parameters
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

@@ -205,6 +205,22 @@ final class AppModel {
 
     // MARK: - Built artifacts
 
+    private var additionalMaterials: [OpticsEffect: ShaderGraphMaterial] = [:]
+    private var additionalValues: [OpticsEffect: [String: Float]] = [:]
+
+    private func additionalValue(_ control: EffectControl, for effect: OpticsEffect) -> Float {
+        additionalValues[effect]?[control.name] ?? control.value
+    }
+
+    private func pushAdditionalParameters(for effect: OpticsEffect) {
+        guard var material = additionalMaterials[effect] else { return }
+        for control in effect.additionalControls {
+            setParam(&material, control.name, .float(additionalValue(control, for: effect)))
+        }
+        additionalMaterials[effect] = material
+        materialRevision += 1
+    }
+
     private(set) var filmMaterial: ShaderGraphMaterial?
     private(set) var gratingMaterial: ShaderGraphMaterial?
     private(set) var nacreMaterial: ShaderGraphMaterial?
@@ -497,6 +513,16 @@ final class AppModel {
                             get: { [weak self] in self?.scarabGain ?? 0 },
                             set: { [weak self] in self?.scarabGain = $0 }),
             ]
+        default:
+            return effect.additionalControls.map { control in
+                SettingSpec(id: control.name, label: control.label, range: control.range,
+                    get: { [weak self] in self?.additionalValue(control, for: effect) ?? control.value },
+                    set: { [weak self] value in
+                        guard let self else { return }
+                        self.additionalValues[effect, default: [:]][control.name] = value
+                        self.pushAdditionalParameters(for: effect)
+                    })
+            }
         }
     }
 
@@ -570,6 +596,7 @@ final class AppModel {
         case .dragonfly: pushDragonflyParameters()
         case .chameleon: pushChameleonParameters()
         case .scarab: pushScarabParameters()
+        default: pushAdditionalParameters(for: effect)
         }
     }
 
@@ -580,6 +607,11 @@ final class AppModel {
     func runShaderAuditIfRequested() async throws {
         guard ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1" else { return }
         try await ensureLoaded(selectedEffect)
+        let grouped = OpticsEffectGroup.allCases.flatMap(\.effects)
+        guard grouped.count == OpticsEffect.allCases.count,
+              Set(grouped) == Set(OpticsEffect.allCases) else {
+            throw NSError(domain: "OpticsAuditCatalog", code: 1)
+        }
         let originalEffect = selectedEffect
         let originalAnimation = isAnimating
         defer {
@@ -597,9 +629,12 @@ final class AppModel {
             defer { for (spec, value) in zip(specs, saved) { spec.set(value) } }
             for phase in ["DEFAULT", "MIN", "MAX"] {
                 if phase != "DEFAULT" {
-                    for spec in specs {
+                    // Intensity=0 hides every other parameter's minimum. Keep
+                    // the optical branch visible while checking physical controls.
+                    for spec in specs where spec.id != "intensity" {
                         spec.set(phase == "MIN" ? spec.range.lowerBound : spec.range.upperBound)
                     }
+                    setIntensity(1, for: effect)
                     await rebuildTask?.value
                 }
                 // Allow the RealityView update and GPU shader pipeline to run.
@@ -613,6 +648,27 @@ final class AppModel {
                 print("OPTICS_AUDIT \(phase) \(effect.rawValue) \(specs.count) parameters")
                 fflush(stdout)
                 if phase == "DEFAULT" { try await Task.sleep(for: .seconds(3)) }
+            }
+            // Capture meaningful comparison states at nominal gain/path length,
+            // rather than relying on simultaneously saturated MAX controls.
+            let comparisons: [(String, String, Float)]
+            switch effect {
+            case .dichroic:
+                comparisons = [("dichroic-reflection", "Transmission", 0),
+                               ("dichroic-transmission", "Transmission", 1)]
+            case .pleochroism:
+                comparisons = [("pleochroism-third-axis", "AxisTilt", 90)]
+            default: comparisons = []
+            }
+            for (name, control, value) in comparisons {
+                for (spec, savedValue) in zip(specs, saved) { spec.set(savedValue) }
+                setIntensity(1, for: effect)
+                specs.first { $0.id == control }?.set(value)
+                try await Task.sleep(for: .seconds(1))
+                guard parameterErrors.isEmpty else { throw NSError(domain: "OpticsAuditComparison", code: 1) }
+                print("OPTICS_AUDIT CAPTURE \(name)")
+                fflush(stdout)
+                try await Task.sleep(for: .seconds(3))
             }
         }
         await rebuildTask?.value
@@ -697,16 +753,41 @@ final class AppModel {
         print("OPTICS_PERF_AUDIT IOR: last edit wins; four-variant LRU bound")
 
         for effect in OpticsEffect.allCases { try await ensureLoaded(effect) }
-        try check(resources.templateCount == 14, "Expected 14 templates for 16 effects")
+        try check(resources.templateCount == Set(OpticsEffect.allCases.map(\.templateName)).count, "Unexpected template count")
         let builds = resources.textureBuildCount
         let loads = resources.templateLoadCount
+        // Added families also share only immutable definitions, never slider state.
+        for (edited, neighbor, name) in [(OpticsEffect.catEye, OpticsEffect.starGem, "Gain"),
+                                         (.oilFilm, .titanium, "Thickness"),
+                                         (.dichroic, .lensCoating, "Thickness")] {
+            let spec = settingsFor(edited).first { $0.id == name }!
+            let saved = spec.get()
+            let other = material(for: neighbor)?.getParameter(name: name)
+            spec.set(spec.range.lowerBound)
+            try check(material(for: neighbor)?.getParameter(name: name) == other,
+                "Shared extended template leaked parameters to another effect")
+            spec.set(saved)
+        }
+        try check(additionalMaterials[.catEye]?.getParameter(name: "StarAmount") == .float(0)
+            && additionalMaterials[.starGem]?.getParameter(name: "StarAmount") == .float(1),
+            "Cat-eye and star modes were not isolated")
+        let channel = settingsFor(.dichroic).first { $0.id == "Transmission" }!
+        let savedChannel = channel.get()
+        try check(material(for: .dichroic)?.getParameter(name: "TransmissionLUT") == nil,
+            "Dichroic retained a duplicate transmission lookup")
+        try check(resources.textureCount == resources.variableTextureCount + 9,
+            "Unexpected fixed lookup allocation")
+        channel.set(1); channel.set(savedChannel)
+        try check(resources.textureBuildCount == builds && resources.templateLoadCount == loads,
+            "Extended controls rebuilt immutable resources")
+        print("OPTICS_PERF_AUDIT extended: isolated cat/star and coating parameters; cached R/T channel")
         let start = ContinuousClock.now
         for _ in 0..<10 {
             for effect in OpticsEffect.allCases { try await ensureLoaded(effect) }
         }
         try check(resources.textureBuildCount == builds && resources.templateLoadCount == loads, "Warm selections rebuilt resources")
         try check(parameterErrors.isEmpty, "Parameter binding failed")
-        print("OPTICS_PERF_AUDIT warm: 160 cached material requests in \(start.duration(to: .now)); zero rebuilds")
+        print("OPTICS_PERF_AUDIT warm: \(OpticsEffect.allCases.count * 10) cached material requests in \(start.duration(to: .now)); zero rebuilds")
         print("OPTICS_PERF_AUDIT PASS: lazy/coalesced resources, isolated material instances, cancelled selection, bounded IOR cache; templates=\(resources.templateCount), textures=\(resources.textureCount), textureBytes=\(resources.textureBytes)")
         fflush(stdout)
     }
@@ -783,8 +864,8 @@ final class AppModel {
             }
         }
         try check(parameterErrors.isEmpty, "Preview shader binding failed")
-        try check(resources.templateCount == 14, "Paired samples duplicated material templates")
-        print("OPTICS_PREVIEW_AUDIT bindings: 16 effects / 2 groups / 9 colors / 3 amounts; two live samples; no color/group resource builds")
+        try check(resources.templateCount == Set(OpticsEffect.allCases.map(\.templateName)).count, "Paired samples duplicated material templates")
+        print("OPTICS_PREVIEW_AUDIT bindings: \(OpticsEffect.allCases.count) effects / 2 groups / 9 colors / 3 amounts; two live samples; no color/group resource builds")
 
         func capture(_ name: String) async throws {
             await prepareSelectedEffect()
@@ -1061,6 +1142,7 @@ final class AppModel {
         case .dragonfly: return dragonflyMaterial
         case .chameleon: return chameleonMaterial
         case .scarab: return scarabMaterial
+        default: return additionalMaterials[effect]
         }
     }
 
@@ -1082,6 +1164,7 @@ final class AppModel {
         case .dragonfly: dragonflyMaterial = material
         case .chameleon: chameleonMaterial = material
         case .scarab: scarabMaterial = material
+        default: additionalMaterials[effect] = material
         }
     }
 

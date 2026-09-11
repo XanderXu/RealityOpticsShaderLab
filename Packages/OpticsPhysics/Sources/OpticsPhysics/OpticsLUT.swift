@@ -2,6 +2,7 @@ import Foundation
 
 /// Immutable lookup identity. Only the soap LUT depends on an interactive value.
 public enum OpticsLUT: Hashable, Sendable {
+    case layered(LayeredFilm)
     case film(ior: Float)
     case grating, nacre, birefringence, morpho, newton
 
@@ -20,6 +21,7 @@ public enum OpticsLUT: Hashable, Sendable {
     /// Matches the 16-byte Metal OpticsParameters layout.
     public var gpuParameters: OpticsGPUParameters {
         switch self {
+        case .layered(let model): return .init(kind: model.rawValue, thicknessMax: model.domainSpan)
         case .film(let ior): return .init(kind: 0, ior: ior, sigma: 15)
         case .morpho: return .init(kind: 0, ior: 1.56, sigma: 30)
         case .nacre: return .init(kind: 1, ior: 1.55, sigma: 45)
@@ -33,6 +35,7 @@ public enum OpticsLUT: Hashable, Sendable {
     /// and texel-center convention; no resolution or wavelength reduction.
     public func referencePixels() -> [UInt16] {
         switch self {
+        case .layered(let model): return model.pixels(preserveSignedRGB: model == .dichroic)
         case .film(let ior): return LUTBuilder.filmLUT(config: .init(n2: ior, sigmaD: 15))
         case .grating: return LUTBuilder.gratingLUT()
         case .nacre: return LUTBuilder.nacreLUT()

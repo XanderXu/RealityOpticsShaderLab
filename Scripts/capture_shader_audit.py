@@ -14,7 +14,7 @@ import threading
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="booted")
-    parser.add_argument("--effect", choices=["thinFilm", "grating", "nacre", "opal", "birefringence", "speckle", "morpho", "beetle", "feather", "hologram", "lcd", "newton", "pearl", "dragonfly", "chameleon", "scarab"])
+    parser.add_argument("--effect", choices=["thinFilm", "grating", "nacre", "opal", "birefringence", "speckle", "morpho", "beetle", "feather", "hologram", "lcd", "newton", "pearl", "dragonfly", "chameleon", "scarab", "catEye", "starGem", "moonstone", "labradorite", "sunstone", "alexandrite", "pleochroism", "dichroic", "retroreflective", "oilFilm", "titanium", "lensCoating"])
     parser.add_argument("--output", type=Path, default=Path("artifacts/shader-audit"))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--performance", action="store_true", help="Check lazy caches and instances instead of screenshots")
@@ -45,7 +45,7 @@ def main():
                     print(line.strip(), flush=True)
                 if line.startswith("OPTICS_AUDIT FAIL:"):
                     raise RuntimeError(line.strip())
-                if line.startswith(("OPTICS_AUDIT DEFAULT ", "OPTICS_PREVIEW_AUDIT CAPTURE ")):
+                if line.startswith(("OPTICS_AUDIT DEFAULT ", "OPTICS_AUDIT CAPTURE ", "OPTICS_PREVIEW_AUDIT CAPTURE ")):
                     effect = line.split()[2]
                     subprocess.run(["xcrun", "simctl", "io", args.device, "screenshot", "--type=jpeg",
                                     str(args.output / f"{effect}.jpg")], check=True, capture_output=True)
@@ -58,7 +58,10 @@ def main():
         subprocess.run(["xcrun", "simctl", "terminate", args.device, bundle], capture_output=True)
         process.terminate()
         process.wait(timeout=10)
-    expected = 5 if args.preview else (0 if args.performance else (1 if args.effect else 16))
+    expected = 5 if args.preview else (0 if args.performance else (1 if args.effect else 28))
+    if not args.performance and not args.preview:
+        if args.effect is None or args.effect == "dichroic": expected += 2
+        if args.effect is None or args.effect == "pleochroism": expected += 1
     if not passed or len(captured) != expected:
         raise SystemExit(f"Incomplete audit: passed={passed}, screenshots={len(captured)}; inspect runtime.log")
     print(f"PASS: {expected} screenshots and runtime.log saved to {args.output}")

@@ -82,7 +82,7 @@ class Graph:
                     assert declared[f'inputs:{axis}addressmode'][2] == 'clamp', f'{self.name}/{name}: LUT wrapping'
             if kind in ['ND_normal_vector3', 'ND_tangent_vector3', 'ND_bitangent_vector3', 'ND_realitykit_viewdirection_vector3']:
                 assert 'inputs:space' in declared, f'{self.name}/{name}: implicit coordinate space'
-                expected = 'object' if self.name == 'SpeckleMaterial' else 'world'
+                expected = 'object' if self.name in ['SpeckleMaterial','ChatoyancyMaterial','MoonstoneMaterial','LabradoriteMaterial','SunstoneMaterial','AlexandriteMaterial','PleochroismMaterial','RetroreflectiveMaterial','LayeredFilmMaterial'] else 'world'
                 assert declared['inputs:space'][2] == expected, f'{self.name}/{name}: mixed direction spaces'
             active.remove(name)
             visited.add(name)
@@ -127,9 +127,10 @@ class Graph:
             elif op in ['add', 'subtract', 'multiply', 'divide', 'min', 'max', 'power']:
                 funcs = {'add': lambda a,b:a+b, 'subtract':lambda a,b:a-b, 'multiply':lambda a,b:a*b, 'divide':lambda a,b:a/b, 'min':min, 'max':max, 'power':pow}
                 out = each(funcs[op], args['in1'], args['in2'])
-            elif op in ['absval', 'sin', 'sqrt', 'floor']:
-                out = each({'absval':abs, 'sin':math.sin, 'sqrt':math.sqrt, 'floor':math.floor}[op], args['in'])
+            elif op in ['absval', 'sin', 'cos', 'exp', 'sqrt', 'floor']:
+                out = each({'absval':abs, 'sin':math.sin, 'cos':math.cos, 'exp':math.exp, 'sqrt':math.sqrt, 'floor':math.floor}[op], args['in'])
             elif op == 'clamp': out = each(lambda x,lo,hi:min(max(x,lo),hi), args['in'], args['low'], args['high'])
+            elif op == 'ifgreater': out=args['in1'] if args['value1']>args['value2'] else args['in2']
             elif op == 'mix': out = each(lambda a,b,t:a*(1-t)+b*t, args['bg'], args['fg'], args['mix'])
             elif op == 'smoothstep':
                 assert args['high'] > args['low'], f'{self.name}/{name}: invalid smoothstep domain'
@@ -171,6 +172,72 @@ def ui_defaults():
     return count
 
 
+def extended_controls(graphs):
+    source = (ROOT/'RealityOpticsShaderLab/ExtendedEffectControls.swift').read_text()
+    count = 0
+    for effect, body in re.findall(r'case \.(\w+): return \[(.*?)\]', source, re.S):
+        name = ('ChatoyancyMaterial' if effect in ['catEye','starGem'] else
+                'LayeredFilmMaterial' if effect in ['oilFilm','titanium','lensCoating','dichroic'] else
+                effect[0].upper()+effect[1:]+'Material')
+        graph = graphs[name]
+        controls = re.findall(r'\.init\(name: "(\w+)", label: "[^"]+", range: (-?[\d.]+)\.\.\.(-?[\d.]+), value: (-?[\d.]+)\)', body)
+        assert controls, f'No controls parsed for {effect}'
+        parameters = {}
+        for key, low, high, default in controls:
+            low,high,default = map(float,(low,high,default))
+            assert low < high and low <= default <= high
+            assert 'inputs:'+key in graph.public, f'{effect}: missing {key}'
+            parameters[key] = default
+            count += 1
+        if effect == 'starGem': parameters['StarAmount']=1
+        if effect in ['titanium','lensCoating','dichroic']: parameters['DomainMax']=300
+        if effect == 'dichroic': parameters['DomainMin']=400
+        for setting in ['default','minimum','maximum']:
+            values=dict(parameters)
+            if setting!='default':
+                for key,low,high,_ in controls: values[key]=float(low if setting=='minimum' else high)
+            for view in [(0.,0.,1.),(1.,0.,0.),(0.,0.,-1.)]:
+                assert min(graph.evaluate('Unlit',values,{'view':view}))>=0
+    # Phenomenon-level regressions: illumination vs direction must do different jobs.
+    alex=graphs['AlexandriteMaterial']
+    day=alex.evaluate('Unlit',{'Illuminant':0});warm=alex.evaluate('Unlit',{'Illuminant':1})
+    assert day[1]>day[0] and warm[0]>warm[1], 'Alexandrite illumination endpoints lost'
+    pleo=graphs['PleochroismMaterial']
+    for vector,channel in [((1.,0.,0.),1),((0.,1.,0.),0),((0.,0.,1.),2)]:
+        c=pleo.evaluate('Unlit',fixtures={'view':vector})
+        assert c[channel]==max(c), 'Crystal axes lost their separate absorption spectra'
+    retro=graphs['RetroreflectiveMaterial']
+    assert retro.evaluate('Cone',fixtures={'Alignment':1})==1
+    assert retro.evaluate('Cone',fixtures={'Alignment':0.7})<0.001
+    chat=graphs['ChatoyancyMaterial']
+    assert chat.evaluate('Band',{'StarAmount':0},{'ValidBand0':.1,'ValidBand1':.8,'ValidBand2':.3})==.1
+    assert math.isclose(chat.evaluate('Band',{'StarAmount':1},{'ValidBand0':.1,'ValidBand1':.8,'ValidBand2':.3}),.8)
+    # Opposite light/view cannot normalize a zero half-vector into NaN.
+    for name in ['ChatoyancyMaterial','SunstoneMaterial','MoonstoneMaterial','LabradoriteMaterial','RetroreflectiveMaterial']:
+        graphs[name].evaluate('Unlit',fixtures={'HalfSum':(0.,0.,0.)})
+    # Back-lighting must leave only ambient body color, not an optical highlight.
+    for name,node in [('ChatoyancyMaterial','Shine'),('SunstoneMaterial','Shine'),
+                      ('MoonstoneMaterial','Glow'),('LabradoriteMaterial','DomainFlash'),
+                      ('RetroreflectiveMaterial','Return')]:
+        g=graphs[name]
+        assert g.evaluate(node,fixtures={'NLRaw':-1})==0, f'{name}: back-light leaks into highlight'
+        # View-facing orientation keeps the back of a two-sided sheet usable.
+        assert g.evaluate('NL',fixtures={'view':(0.,0.,-1.),'ObjectLight':(0.,0.,-1.)})>0.99
+    sunstone=graphs['SunstoneMaterial']
+    assert sunstone.evaluate('Facet',fixtures={'Grain':0.1})==sunstone.evaluate('Facet',fixtures={'Grain':0.99}), 'Occupancy biases flake orientation'
+    tilted=pleo.evaluate('Transmission',{'AxisTilt':90}, {'view':(0.,0.,1.)})
+    assert tilted[0]==max(tilted), 'Third crystal axis cannot be reached from the controls'
+    assert pleo.evaluate('FacingShade',fixtures={'NV':0.02}) < pleo.evaluate('FacingShade',fixtures={'NV':1})
+    # Complement before clipping: a negative reflected RGB channel gives >white T.
+    layer=graphs['LayeredFilmMaterial']
+    assert len([k for k,_ in layer.nodes.values() if k=='ND_image_color3'])==1
+    raw=(-0.1,0.2,1.2)
+    for channel,expected in [(0,(0.,0.2,1.2)),(1,(1.1,0.8,0.))]:
+        out=layer.evaluate('DisplayChannel',{'Transmission':channel},{'RawReflection':raw})
+        assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(out,expected)), 'Complement clipped too early'
+    return count
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stdlib',type=Path)
@@ -180,7 +247,7 @@ def main():
         definitions={n.attrib['name']:{p.tag+':'+p.attrib['name']:p.attrib['type'] for p in n if p.tag in ['input','output']} for n in ET.parse(args.stdlib).getroot().findall('nodedef')}
         definitions={k:{p.replace('input:','inputs:').replace('output:','outputs:'):t for p,t in v.items()} for k,v in definitions.items()}
     graphs={p.stem:Graph(p) for p in sorted(MATERIALS.glob('*.usda'))}
-    assert len(graphs)==16
+    assert len(graphs)==24
     total=0
     for graph in graphs.values():
         total+=graph.validate(definitions)
@@ -227,7 +294,7 @@ def main():
     for graph in ['DiffractionGratingMaterial','OpalMaterial','BeetleMaterial']:
         assert graphs[graph].evaluate('Radial',fixtures={'GrooveAxis':(0.,0.,0.)})==(0.,0.,0.)
     assert graphs['DiffractionGratingMaterial'].evaluate('Delta',fixtures={'LoP':0.4,'VoP':-0.4})==0
-    print(f'PASS 16 materials / {total} nodes; {ui_defaults()} UI defaults; direction, range, base-color and arithmetic regressions')
+    print(f'PASS {len(graphs)} material files / {total} nodes; {ui_defaults() + extended_controls(graphs)} UI defaults; direction, range, base-color and arithmetic regressions')
 
 if __name__=='__main__':
     main()

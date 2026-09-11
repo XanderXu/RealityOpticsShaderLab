@@ -1,0 +1,543 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "SunstoneMaterial"
+    {
+        float inputs:GrainScale = 55
+        float inputs:Threshold = 0.83
+        float inputs:Sharpness = 35
+        float inputs:LightAngle = 18
+        float inputs:Gain = 1
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        token outputs:mtlx:surface.connect = </Root/SunstoneMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/SunstoneMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.002
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "FaceSign"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/SunstoneMaterial/NdotV.outputs:out>
+            float inputs:value2 = 0.0
+            float inputs:in1 = 1.0
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "FacingNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/Normal.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/FaceSign.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial.inputs:LightAngle>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "LightX"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightZ"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WorldLight"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/SunstoneMaterial/LightX.outputs:out>
+            float inputs:in2 = 0.0
+            float inputs:in3.connect = </Root/SunstoneMaterial/LightZ.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ObjectLight"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/SunstoneMaterial/WorldLight.outputs:out>
+            string inputs:fromspace = "world"
+            string inputs:tospace = "object"
+            float3 outputs:out
+        }
+
+        def Shader "LightSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/ObjectLight.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/ObjectLight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/LightSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "LightLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/LightSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Light"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/ObjectLight.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/LightLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HalfSum"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/Light.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/View.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "HalfSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/HalfSum.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/HalfSum.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "HalfSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/HalfSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "HalfLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/HalfSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Half"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/HalfSum.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/HalfLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "NLRaw"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/Light.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NL"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/NLRaw.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "GrainPosition"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/UnitPosition.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial.inputs:GrainScale>
+            float3 outputs:out
+        }
+
+        def Shader "Grain"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/SunstoneMaterial/GrainPosition.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Offset2"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/GrainPosition.outputs:out>
+            float3 inputs:in2 = (13.0, 7.0, 19.0)
+            float3 outputs:out
+        }
+
+        def Shader "Grain2"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/SunstoneMaterial/Offset2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Offset3"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/GrainPosition.outputs:out>
+            float3 inputs:in2 = (31.0, 41.0, 11.0)
+            float3 outputs:out
+        }
+
+        def Shader "Grain3"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/SunstoneMaterial/Offset3.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Offset4"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/GrainPosition.outputs:out>
+            float3 inputs:in2 = (17.0, 53.0, 29.0)
+            float3 outputs:out
+        }
+
+        def Shader "FacetXRandom"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/SunstoneMaterial/Offset4.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetRandom"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/SunstoneMaterial/FacetXRandom.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/Grain2.outputs:out>
+            float inputs:in3.connect = </Root/SunstoneMaterial/Grain3.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "FacetBias"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/FacetRandom.outputs:out>
+            float3 inputs:in2 = (0.5, 0.5, 0.0)
+            float3 outputs:out
+        }
+
+        def Shader "FacetSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/FacetBias.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/FacetBias.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/FacetSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "FacetLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/FacetSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Facet"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/FacetBias.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/FacetLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "FacetHalf"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/SunstoneMaterial/Facet.outputs:out>
+            float3 inputs:in2.connect = </Root/SunstoneMaterial/Half.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetAbs"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/FacetHalf.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetFacing"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/FacetAbs.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Flash"
+        {
+            uniform token info:id = "ND_power_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/FacetFacing.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial.inputs:Sharpness>
+            float outputs:out
+        }
+
+        def Shader "GrainMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/SunstoneMaterial/Grain.outputs:out>
+            float inputs:low.connect = </Root/SunstoneMaterial.inputs:Threshold>
+            float inputs:high = 0.995
+            float outputs:out
+        }
+
+        def Shader "Sparkles"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/Flash.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/GrainMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LitSparkles"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/Sparkles.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial/NL.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Shine"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/LitSparkles.outputs:out>
+            float inputs:in2 = 8.0
+            float outputs:out
+        }
+
+        def Shader "BodyFacing"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/NV.outputs:out>
+            float inputs:in2 = 0.55
+            float outputs:out
+        }
+
+        def Shader "BodyShade"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/SunstoneMaterial/BodyFacing.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "Body"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1 = (0.24, 0.055, 0.012)
+            float inputs:in2.connect = </Root/SunstoneMaterial/BodyShade.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SparkleColor"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1 = (1.0, 0.49, 0.12)
+            float inputs:in2.connect = </Root/SunstoneMaterial/Shine.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Final"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/SunstoneMaterial/Body.outputs:out>
+            color3f inputs:in2.connect = </Root/SunstoneMaterial/SparkleColor.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/SunstoneMaterial/Final.outputs:out>
+            float inputs:in2.connect = </Root/SunstoneMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/SunstoneMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/SunstoneMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/SunstoneMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/SunstoneMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/SunstoneMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/SunstoneMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/SunstoneMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/SunstoneMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

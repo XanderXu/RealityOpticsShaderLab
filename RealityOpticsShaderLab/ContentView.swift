@@ -62,7 +62,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("实时预览")
+                    Text(model.selectedEffect.group.title + " · 实时预览")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(model.selectedEffect.menuTitle)

@@ -1,0 +1,307 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "LayeredFilmMaterial"
+    {
+        float inputs:Thickness = 380
+        float inputs:Variation = 180
+        float inputs:Gain = 1
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:FilmLUT
+        color3f inputs:IlluminantWhite = (1.0, 1.0, 1.0)
+        float inputs:Transmission = 0
+        float inputs:DomainMax = 1000
+        float inputs:DomainMin = 0
+        token outputs:mtlx:surface.connect = </Root/LayeredFilmMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/LayeredFilmMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/LayeredFilmMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/LayeredFilmMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/LayeredFilmMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.002
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "FlowScale"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/LayeredFilmMaterial/UnitPosition.outputs:out>
+            float inputs:in2 = 2.5
+            float3 outputs:out
+        }
+
+        def Shader "FlowNoise"
+        {
+            uniform token info:id = "ND_fractal3d_color3"
+            float3 inputs:position.connect = </Root/LayeredFilmMaterial/FlowScale.outputs:out>
+            float3 inputs:amplitude = (0.5, 0.5, 0.5)
+            int inputs:octaves = 3
+            color3f outputs:out
+        }
+
+        def Shader "FlowSeparate"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/LayeredFilmMaterial/FlowNoise.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "Variation"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/FlowSeparate.outputs:outr>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:Variation>
+            float outputs:out
+        }
+
+        def Shader "LocalThickness"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial.inputs:Thickness>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/Variation.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DomainOffset"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/LocalThickness.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:DomainMin>
+            float outputs:out
+        }
+
+        def Shader "DomainScale"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/DomainOffset.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:DomainMax>
+            float outputs:out
+        }
+
+        def Shader "ThicknessCoordinate"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/DomainScale.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "RawReflectionUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/NV.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/ThicknessCoordinate.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "RawReflection"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/LayeredFilmMaterial.inputs:FilmLUT>
+            float2 inputs:texcoord.connect = </Root/LayeredFilmMaterial/RawReflectionUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Reflection"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/RawReflection.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "Complement"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial.inputs:IlluminantWhite>
+            color3f inputs:in2.connect = </Root/LayeredFilmMaterial/RawReflection.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "TransmissionColor"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/Complement.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "DisplayChannel"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LayeredFilmMaterial/Reflection.outputs:out>
+            color3f inputs:fg.connect = </Root/LayeredFilmMaterial/TransmissionColor.outputs:out>
+            float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:Transmission>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/DisplayChannel.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LayeredFilmMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/LayeredFilmMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/LayeredFilmMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

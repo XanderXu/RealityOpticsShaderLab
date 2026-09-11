@@ -1,3 +1,4 @@
+import CoreGraphics
 import RealityKit
 import OpticsContent
 import OpticsPhysics
@@ -69,8 +70,7 @@ final class OpticsResources {
     }
 
     func material(for effect: OpticsEffect, soapIOR: Float) async throws -> ShaderGraphMaterial {
-        let usesFilmTemplate = effect == .thinFilm || effect == .nacre || effect == .morpho
-        let name = usesFilmTemplate ? "IridescentFilmMaterial" : effect.materialName
+        let name = effect.templateName
         // USD loading and this effect's GPU lookup can overlap. No unrelated LUTs.
         async let base = template(name)
         var bindings: [(String, OpticsLUT)] = []
@@ -88,7 +88,12 @@ final class OpticsResources {
         case .pearl: bindings = [("PearlLUT", .nacre)]
         case .chameleon: bindings = [("ChromaLUT", .grating)]
         case .scarab: bindings = [("ScarabLUT", .morpho)]
-        case .lcd, .speckle: break
+        case .labradorite: bindings = [("FilmLUT", .morpho)]
+        case .oilFilm: bindings = [("FilmLUT", .layered(.oil))]
+        case .titanium: bindings = [("FilmLUT", .layered(.titanium))]
+        case .lensCoating: bindings = [("FilmLUT", .layered(.coating))]
+        case .dichroic: bindings = [("FilmLUT", .layered(.dichroic))]
+        case .lcd, .speckle, .catEye, .starGem, .moonstone, .sunstone, .alexandrite, .pleochroism, .retroreflective: break
         }
         var loaded: [(String, TextureResource)] = []
         for (parameter, key) in bindings { loaded.append((parameter, try await texture(key).resource)) }
@@ -96,6 +101,29 @@ final class OpticsResources {
         for (parameter, texture) in loaded { try instance.setParameter(name: parameter, value: .textureResource(texture)) }
         if effect == .nacre { try instance.setParameter(name: "Opacity", value: .float(1)) }
         if effect == .morpho { try instance.setParameter(name: "Opacity", value: .float(0.92)) }
+        if effect == .starGem {
+            try instance.setParameter(name: "StarAmount", value: .float(1))
+            try instance.setParameter(name: "BodyTint", value: .color(CGColor(colorSpace: PreviewColor.materialColorSpace, components: [0.018, 0.035, 0.12, 1])!))
+            try instance.setParameter(name: "ShineTint", value: .color(CGColor(colorSpace: PreviewColor.materialColorSpace, components: [0.7, 0.86, 1, 1])!))
+        }
+        let layer: LayeredFilm?
+        switch effect {
+        case .oilFilm: layer = .oil
+        case .titanium: layer = .titanium
+        case .lensCoating: layer = .coating
+        case .dichroic: layer = .dichroic
+        default: layer = nil
+        }
+        if let layer {
+            // Use the same D65 integration white as the CPU reference; subtract
+            // before gamut clipping so saturated reflected colors keep correct T.
+            let white = Spectrum.rgb(samples: [Float](repeating: 1, count: Spectrum.sampleCount))
+            let color = CGColor(colorSpace: PreviewColor.materialColorSpace,
+                components: [CGFloat(white.x), CGFloat(white.y), CGFloat(white.z), 1])!
+            try instance.setParameter(name: "IlluminantWhite", value: .color(color))
+            try instance.setParameter(name: "DomainMin", value: .float(layer.domainMinimum))
+            try instance.setParameter(name: "DomainMax", value: .float(layer.domainSpan))
+        }
         return instance
     }
 }

@@ -1,0 +1,33 @@
+2026-09-11 23:29:09.434 RealityOpticsShaderLab[31567:19881273] Metal API Validation Enabled
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.024870125 seconds
+OPTICS_PERF_AUDIT lazy start: 1 template / 1 LUT
+OPTICS_PERF FIRST_READY thinFilm: 1.241572917 seconds
+OPTICS_PERF SELECT thinFilm: 0.766485167 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_PERF LUT GPU nacre: 0.01969725 seconds
+OPTICS_PERF LUT GPU morpho: 0.015356334 seconds
+OPTICS_PERF_AUDIT instances: 3 effects / 1 template; independent parameters
+OPTICS_PERF LUT GPU film(ior: 1.234): 0.017586584 seconds
+OPTICS_PERF_AUDIT coalescing: 3 concurrent requests / 1 dispatch
+OPTICS_PERF SELECT thinFilm: 8.334e-06 seconds; templates=1, textures=4, textureBytes=2097152
+OPTICS_PERF SELECT thinFilm: 0.000718958 seconds; templates=1, textures=4, textureBytes=2097152
+OPTICS_PERF LUT GPU grating: 0.107146667 seconds
+OPTICS_PERF_AUDIT cancelled selection: current effect remains Ready
+OPTICS_PERF LUT GPU film(ior: 1.345): 0.002957333 seconds
+OPTICS_PERF LUT GPU film(ior: 1.21): 0.003482042 seconds
+OPTICS_PERF LUT GPU film(ior: 1.24): 0.015131041 seconds
+OPTICS_PERF LUT GPU film(ior: 1.27): 0.012887917 seconds
+OPTICS_PERF LUT GPU film(ior: 1.3): 0.01570875 seconds
+OPTICS_PERF LUT GPU film(ior: 1.36): 0.003460542 seconds
+OPTICS_PERF LUT GPU film(ior: 1.4): 0.00282225 seconds
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.004736542 seconds
+OPTICS_PERF_AUDIT IOR: last edit wins; four-variant LRU bound
+OPTICS_PERF LUT GPU birefringence: 0.002749333 seconds
+OPTICS_PERF LUT GPU newton: 0.004471625 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.coating): 0.007945833 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.titanium): 0.004406917 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.oil): 0.003587 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.dichroic): 0.018855208 seconds
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.dichroicTransmission): 0.004697167 seconds
+OPTICS_PERF_AUDIT extended: isolated cat/star and coating parameters; cached R/T channel
+OPTICS_PERF_AUDIT warm: 280 cached material requests in 0.000234708 seconds; zero rebuilds
+OPTICS_PERF_AUDIT PASS: lazy/coalesced resources, isolated material instances, cancelled selection, bounded IOR cache; templates=22, textures=14, textureBytes=7086080

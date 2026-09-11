@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Catalog of wave-optics effects demoed by the app.
-/// All 16 effects are wired up. Mechanisms distinguish spectral models from
+/// All catalog entries are wired up. Mechanisms distinguish spectral models from
 /// illustrative approximations so the UI does not imply a full physical solver.
 enum OpticsEffect: String, CaseIterable, Identifiable {
     case thinFilm
@@ -20,6 +20,18 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     case dragonfly
     case chameleon
     case scarab
+    case lensCoating
+    case titanium
+    case oilFilm
+    case retroreflective
+    case dichroic
+    case pleochroism
+    case alexandrite
+    case sunstone
+    case labradorite
+    case moonstone
+    case starGem
+    case catEye
 
     var id: String { rawValue }
 
@@ -50,6 +62,18 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .dragonfly: return "蜻蜓翅膀（Dragonfly Wing）"
         case .chameleon: return "变色龙皮肤（Chameleon Structural Color）"
         case .scarab: return "圆偏振金龟子（Circular-Polarization Scarab）"
+        case .catEye: return "猫眼效应"
+        case .starGem: return "星光宝石"
+        case .moonstone: return "月光石"
+        case .labradorite: return "拉长石"
+        case .sunstone: return "日光石"
+        case .alexandrite: return "变石效应"
+        case .pleochroism: return "多色性"
+        case .dichroic: return "二向色玻璃"
+        case .retroreflective: return "逆反射材料"
+        case .oilFilm: return "油膜"
+        case .titanium: return "阳极氧化钛"
+        case .lensCoating: return "镜头镀膜"
         }
     }
 
@@ -72,6 +96,18 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .dragonfly: return "蜻蜓翅膀"
         case .chameleon: return "变色龙皮肤"
         case .scarab: return "圆偏振金龟"
+        case .catEye: return "猫眼效应"
+        case .starGem: return "星光宝石"
+        case .moonstone: return "月光石"
+        case .labradorite: return "拉长石"
+        case .sunstone: return "日光石"
+        case .alexandrite: return "变石效应"
+        case .pleochroism: return "多色性"
+        case .dichroic: return "二向色玻璃"
+        case .retroreflective: return "逆反射材料"
+        case .oilFilm: return "油膜"
+        case .titanium: return "阳极氧化钛"
+        case .lensCoating: return "镜头镀膜"
         }
     }
 
@@ -94,6 +130,18 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
         case .dragonfly: return "wind"
         case .chameleon: return "hare"
         case .scarab: return "shield.lefthalf.filled"
+        case .catEye: return "eye"
+        case .starGem: return "star"
+        case .moonstone: return "moon.fill"
+        case .labradorite: return "diamond.fill"
+        case .sunstone: return "sun.max.fill"
+        case .alexandrite: return "lightbulb.2"
+        case .pleochroism: return "cube.transparent"
+        case .dichroic: return "rectangle.lefthalf.filled"
+        case .retroreflective: return "light.beacon.max"
+        case .oilFilm: return "drop.fill"
+        case .titanium: return "square.stack.3d.up.fill"
+        case .lensCoating: return "camera.aperture"
         }
     }
 
@@ -132,6 +180,18 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
             return "虹彩细胞内纳米晶体间距变化可改变结构色，本演示以晶域色彩循环近似"
         case .scarab:
             return "部分金龟子的螺旋层状结构选择反射圆偏振光；此处展示两支颜色的混合示意"
+        case .catEye: return "平行纤维产生随视角扫动的窄亮带"
+        case .starGem: return "三组定向包裹体形成六射星光"
+        case .moonstone: return "蓝白柔光在乳白石体内漂移"
+        case .labradorite: return "深色石体转动时出现蓝金色大块晕彩"
+        case .sunstone: return "铜金色片状闪点随光源与视角闪烁"
+        case .alexandrite: return "切换照明色谱，绿色体色转为红紫色"
+        case .pleochroism: return "沿晶体不同方向观察呈现不同体色"
+        case .dichroic: return "多层滤光膜反射与透射的互补颜色"
+        case .retroreflective: return "光源靠近观察方向时突然明亮"
+        case .oilFilm: return "水面油膜呈现流纹状干涉色"
+        case .titanium: return "金属基底上随氧化层厚度变化的鲜明颜色"
+        case .lensCoating: return "低反射镀膜残余的紫绿光泽"
         }
     }
 
@@ -170,15 +230,59 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
             return "worley 晶域随机相位 + time 驱动循环采样光栅 LUT 色相轴，皮肤纹理亮度扰动"
         case .scarab:
             return "两个等效薄膜厚度采样，由 R→L 滑杆线性混合；这是偏振色支示意，不代表真实圆偏振选择反射或检偏器角度响应"
+        case .catEye: return "物体空间纤维方向控制各向异性角度瓣；以法线和半角矢量的偏差驱动窄亮带，属于包裹体定向反射的外观近似"
+        case .starGem: return "共享猫眼模板，叠加三组相差 60° 的定向亮带；不追踪宝石内部多次折射"
+        case .moonstone: return "低频三维纹理与宽角度散射瓣模拟月光效应；不是体积多重散射求解"
+        case .labradorite: return "三维晶域调制定向闪光，等效几丁质膜 LUT 近似层片干涉颜色；不模拟真实长石层片堆栈"
+        case .sunstone: return "物体空间细胞随机包裹体，随机片层朝向与半角矢量控制闪点；无体积光线追踪"
+        case .alexandrite: return "两种参考照明下的代表性线性 RGB 端点混合，并用 Beer–Lambert RGB 透过率控制深浅；是光源变色示意，非实测变石光谱"
+        case .pleochroism: return "三个正交晶轴的 RGB 吸收系数按视线方向平方加权，经 Beer–Lambert 衰减；未模拟偏振分束及宝石切面折射"
+        case .dichroic: return "六层高低折射率四分之一波膜的复振幅递推，光谱积分；透射使用无吸收堆栈的 T=1−R，显示通道可切换，不包含背景折射"
+        case .retroreflective: return "光源与视线夹角的窄回归瓣乘入射余弦；展示逆反射角响应，不追踪微珠或角锥中的光路"
+        case .oilFilm: return "空气／折射率 1.47 油膜／折射率 1.333 水的三介质光谱干涉；纹理改变局部膜厚，不模拟流体"
+        case .titanium: return "空气／折射率 2.4 氧化层／复折射率 2.7+3.3i 金属基底的薄膜模型；常数 n、k 是代表性近似，不用于预测电压或真实色卡"
+        case .lensCoating: return "空气／折射率 1.38 单层 MgF₂／折射率 1.52 玻璃的干涉模型；近 100 nm 抑制绿光反射，不代表商业多层宽带配方"
         }
     }
 
-    var isImplemented: Bool {
+    var isImplemented: Bool { true }
+
+    /// Runtime templates may be shared without sharing mutable parameters.
+    var templateName: String {
         switch self {
-        case .thinFilm, .grating, .nacre, .opal, .birefringence, .speckle,
-             .morpho, .beetle, .feather,
-             .hologram, .lcd, .newton, .pearl, .dragonfly, .chameleon, .scarab:
-            return true
+        case .thinFilm, .nacre, .morpho: return "IridescentFilmMaterial"
+        case .catEye, .starGem: return "ChatoyancyMaterial"
+        case .oilFilm, .titanium, .lensCoating, .dichroic: return "LayeredFilmMaterial"
+        default: return materialName
+        }
+    }
+
+    var group: OpticsEffectGroup {
+        OpticsEffectGroup.allCases.first { $0.effects.contains(self) }!
+    }
+}
+
+enum OpticsEffectGroup: String, CaseIterable, Identifiable {
+    case films, structural, softGlow, directional, polarization, diffraction
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .films: return "薄膜与镀膜"
+        case .structural: return "结构色与晕彩"
+        case .softGlow: return "珠光与柔光"
+        case .directional: return "定向反光"
+        case .polarization: return "偏振与体色"
+        case .diffraction: return "衍射与散斑"
+        }
+    }
+    var effects: [OpticsEffect] {
+        switch self {
+        case .films: return [.thinFilm, .oilFilm, .titanium, .lensCoating, .dichroic, .newton, .dragonfly]
+        case .structural: return [.opal, .labradorite, .morpho, .beetle, .feather, .chameleon]
+        case .softGlow: return [.nacre, .pearl, .moonstone]
+        case .directional: return [.catEye, .starGem, .sunstone, .retroreflective]
+        case .polarization: return [.birefringence, .lcd, .scarab, .alexandrite, .pleochroism]
+        case .diffraction: return [.grating, .hologram, .speckle]
         }
     }
 }

@@ -1,0 +1,17 @@
+2026-09-11 23:40:00.773 verify[33335:19898152] Metal API Validation Enabled
+PASS film(ior: 1.333) 256x256: max=0.0009765625, RMSE=5.438317452399098e-05, CPU=0.199826208 seconds, GPU submission+wait=0.003851958 seconds
+PASS film(ior: 1.2) 256x256: max=0.0009765625, RMSE=4.904734335009695e-05, CPU=0.198046042 seconds, GPU submission+wait=0.00180625 seconds
+PASS film(ior: 1.45) 256x256: max=0.0009765625, RMSE=5.595705239181486e-05, CPU=0.201525542 seconds, GPU submission+wait=0.001966708 seconds
+PASS morpho 256x256: max=0.0009765625, RMSE=5.6961098035360536e-05, CPU=0.200894583 seconds, GPU submission+wait=0.001322292 seconds
+PASS nacre 256x256: max=0.00048828125, RMSE=5.8660015452885164e-05, CPU=0.618521458 seconds, GPU submission+wait=0.003113959 seconds
+PASS grating 256x128: max=0.00024414062, RMSE=1.2096606963457492e-05, CPU=0.018554333 seconds, GPU submission+wait=0.001010042 seconds
+PASS birefringence 1024x1: max=0.0009765625, RMSE=8.766826309014039e-05, CPU=0.000627 seconds, GPU submission+wait=0.000620666 seconds
+PASS newton 256x512: max=0.00048828125, RMSE=5.642661806453625e-05, CPU=0.096428208 seconds, GPU submission+wait=0.001599709 seconds
+PASS layered(verify.LayeredFilm.oil) 256x256: max=0.00048828125, RMSE=4.479020039358105e-05, CPU=1.277670333 seconds, GPU submission+wait=0.001558917 seconds
+PASS layered(verify.LayeredFilm.titanium) 256x256: max=0.00048828125, RMSE=7.817668881975539e-05, CPU=1.268240917 seconds, GPU submission+wait=0.002734083 seconds
+PASS layered(verify.LayeredFilm.coating) 256x256: max=0.00048828125, RMSE=4.379489554312226e-05, CPU=1.280157375 seconds, GPU submission+wait=0.0027215 seconds
+PASS single-LUT transmission vs independent integration: max=0.00050115585, RMSE=0.0001571801616840742
+PASS layered(verify.LayeredFilm.dichroic) 256x256: max=0.00048828125, RMSE=8.511693662938549e-05, CPU=2.320623083 seconds, GPU submission+wait=0.005436625 seconds
+PASS layered(verify.LayeredFilm.dichroicTransmission) 256x256: max=0.0009765625, RMSE=7.795918167331745e-05, CPU=2.3171175 seconds, GPU submission+wait=0.004034917 seconds
+PASS film(ior: 1.333) 257x129: max=0.0009765625, RMSE=5.2916528255635544e-05, CPU=0.100913333 seconds, GPU submission+wait=0.002934458 seconds
+PASS all full-resolution LUTs and padded edge groups; half weights/storage, float optical arithmetic; verified vertical orientation
