@@ -139,6 +139,7 @@ final class AppModel {
 
     var chameleonCellScale: Float = 10 { didSet { pushChameleonParameters() } }
     var chameleonHueSpeed: Float = 0.15 { didSet { pushChameleonParameters() } }
+    var chameleonViewSwing: Float = 0.15 { didSet { pushChameleonParameters() } }
     var chameleonGain: Float = 1.6 { didSet { pushChameleonParameters() } }
 
     // MARK: - Scarab parameters
@@ -434,6 +435,9 @@ final class AppModel {
                 SettingSpec(id: "cSpeed", label: "Color switching speed", range: 0...0.6,
                             get: { [weak self] in self?.chameleonHueSpeed ?? 0 },
                             set: { [weak self] in self?.chameleonHueSpeed = $0 }),
+                SettingSpec(id: "cSwing", label: "View-angle hue swing", range: 0...0.4,
+                            get: { [weak self] in self?.chameleonViewSwing ?? 0 },
+                            set: { [weak self] in self?.chameleonViewSwing = $0 }),
                 SettingSpec(id: "cGain", label: "Gain", range: 0.5...3,
                             get: { [weak self] in self?.chameleonGain ?? 0 },
                             set: { [weak self] in self?.chameleonGain = $0 }),
@@ -1223,6 +1227,7 @@ final class AppModel {
         guard var skin = chameleonMaterial else { return }
         setParam(&skin, "CellScale", .float(chameleonCellScale))
         setParam(&skin, "HueSpeed", .float(chameleonHueSpeed))
+        setParam(&skin, "ViewSwing", .float(chameleonViewSwing))
         setParam(&skin, "Gain", .float(chameleonGain))
         chameleonMaterial = skin
         materialRevision += 1

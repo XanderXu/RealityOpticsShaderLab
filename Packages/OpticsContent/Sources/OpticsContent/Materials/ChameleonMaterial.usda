@@ -12,6 +12,7 @@ def Xform "Root"
         asset inputs:ChromaLUT
         float inputs:CellScale = 10
         float inputs:HueSpeed = 0.15
+        float inputs:ViewSwing = 0.15
         float inputs:Gain = 1.6
         float inputs:Intensity = 1
         token outputs:mtlx:surface.connect = </Root/ChameleonMaterial/Unlit.outputs:out>
@@ -88,10 +89,53 @@ def Xform "Root"
             float outputs:out
         }
 
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "ViewDir"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ChameleonMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/ChameleonMaterial/ViewDir.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/ChameleonMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSwingTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/AbsNV.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial.inputs:ViewSwing>
+            float outputs:out
+        }
+
+        def Shader "PhaseView"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ChameleonMaterial/Phase.outputs:out>
+            float inputs:in2.connect = </Root/ChameleonMaterial/ViewSwingTerm.outputs:out>
+            float outputs:out
+        }
+
         def Shader "U"
         {
             uniform token info:id = "ND_modulo_float"
-            float inputs:in1.connect = </Root/ChameleonMaterial/Phase.outputs:out>
+            float inputs:in1.connect = </Root/ChameleonMaterial/PhaseView.outputs:out>
             float inputs:in2.connect = </Root/ChameleonMaterial/One.outputs:out>
             float outputs:out
         }
