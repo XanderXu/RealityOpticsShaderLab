@@ -26,6 +26,11 @@ final class AppModel {
            let effect = OpticsEffect(rawValue: raw) {
             selectedEffect = effect
         }
+        // SIMCTL_CHILD_OPTICS_INTENSITY=0.2 — applied once materials exist.
+        if let raw = ProcessInfo.processInfo.environment["OPTICS_INTENSITY"],
+           let value = Float(raw) {
+            intensities[selectedEffect] = min(max(value, 0), 2)
+        }
     }
 
     // MARK: - Film (soap bubble) parameters
@@ -97,6 +102,21 @@ final class AppModel {
     /// Drives the turntable rotation in the scene's update handler.
     var isAnimating = true
 
+    // MARK: - Master effect intensity
+
+    /// Per-effect strength, remembered while switching between effects.
+    /// 0 renders the neutral gray slab, 1 is the physical look, >1 saturates.
+    private var intensities: [OpticsEffect: Float] = [:]
+
+    func intensity(for effect: OpticsEffect) -> Float {
+        intensities[effect] ?? 1
+    }
+
+    func setIntensity(_ value: Float, for effect: OpticsEffect) {
+        intensities[effect] = value
+        pushIntensity(for: effect)
+    }
+
     // MARK: - Built artifacts
 
     private(set) var filmMaterial: ShaderGraphMaterial?
@@ -133,6 +153,18 @@ final class AppModel {
     // MARK: - Per-effect settings
 
     func settingsFor(_ effect: OpticsEffect) -> [SettingSpec] {
+        var specs = effectSettings(effect)
+        // The master intensity leads every effect's panel: it scales how far
+        // the optical colors deviate from a neutral gray base (0 = off).
+        specs.insert(
+            SettingSpec(id: "intensity", label: "Effect intensity", range: 0...2,
+                        get: { [weak self] in self?.intensity(for: effect) ?? 1 },
+                        set: { [weak self] in self?.setIntensity($0, for: effect) }),
+            at: 0)
+        return specs
+    }
+
+    private func effectSettings(_ effect: OpticsEffect) -> [SettingSpec] {
         switch effect {
         case .thinFilm:
             return [
@@ -442,6 +474,11 @@ final class AppModel {
         } catch {
             statusMessage = "feather err: \(error.localizedDescription)"
             return
+        }
+
+        // Apply any stored (env-provided) intensity now that materials exist.
+        for effect in OpticsEffect.allCases {
+            pushIntensity(for: effect)
         }
 
         statusMessage = "Ready"
@@ -763,6 +800,43 @@ final class AppModel {
         setParam(&feather, "GlitterScale", .float(featherGlitterScale))
         setParam(&feather, "Gain", .float(featherGain))
         featherMaterial = feather
+        materialRevision += 1
+    }
+
+    private func material(for effect: OpticsEffect) -> ShaderGraphMaterial? {
+        switch effect {
+        case .thinFilm: return filmMaterial
+        case .grating: return gratingMaterial
+        case .nacre: return nacreMaterial
+        case .opal: return opalMaterial
+        case .birefringence: return birefringenceMaterial
+        case .speckle: return speckleMaterial
+        case .morpho: return morphoMaterial
+        case .beetle: return beetleMaterial
+        case .feather: return featherMaterial
+        default: return nil
+        }
+    }
+
+    private func store(_ material: ShaderGraphMaterial, for effect: OpticsEffect) {
+        switch effect {
+        case .thinFilm: filmMaterial = material
+        case .grating: gratingMaterial = material
+        case .nacre: nacreMaterial = material
+        case .opal: opalMaterial = material
+        case .birefringence: birefringenceMaterial = material
+        case .speckle: speckleMaterial = material
+        case .morpho: morphoMaterial = material
+        case .beetle: beetleMaterial = material
+        case .feather: featherMaterial = material
+        default: break
+        }
+    }
+
+    private func pushIntensity(for effect: OpticsEffect) {
+        guard var m = material(for: effect) else { return }
+        setParam(&m, "Intensity", .float(intensity(for: effect)))
+        store(m, for: effect)
         materialRevision += 1
     }
 

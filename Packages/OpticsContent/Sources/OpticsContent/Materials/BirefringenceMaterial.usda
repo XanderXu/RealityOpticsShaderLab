@@ -13,6 +13,7 @@ def Xform "Root"
         float inputs:PhaseScale = 2.0
         float inputs:NoiseAmount = 0.3
         float inputs:Gain = 1.3
+        float inputs:Intensity = 1
         token outputs:mtlx:surface.connect = </Root/BirefringenceMaterial/Unlit.outputs:out>
         token outputs:realitykit:vertex
         token outputs:surface.connect = </Root/BirefringenceMaterial/DefaultSurfaceShader.outputs:surface>
@@ -304,10 +305,51 @@ def Xform "Root"
             color3f outputs:out
         }
 
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/BirefringenceMaterial/ExtMul.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/BirefringenceMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/BirefringenceMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/BirefringenceMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/BirefringenceMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/BirefringenceMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/BirefringenceMaterial/ExtMul.outputs:out>
+            color3f inputs:color.connect = </Root/BirefringenceMaterial/IntensityBlend.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out

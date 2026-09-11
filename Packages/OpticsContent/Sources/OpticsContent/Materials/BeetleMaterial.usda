@@ -14,6 +14,7 @@ def Xform "Root"
         float inputs:GreenBand = 0.22
         float inputs:RainbowMix = 0.35
         float inputs:Gain = 1.8
+        float inputs:Intensity = 1
         token outputs:mtlx:surface.connect = </Root/BeetleMaterial/Unlit.outputs:out>
         token outputs:realitykit:vertex
         token outputs:surface.connect = </Root/BeetleMaterial/DefaultSurfaceShader.outputs:surface>
@@ -199,10 +200,51 @@ def Xform "Root"
             color3f outputs:out
         }
 
+        def Shader "IntensityEff"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/BeetleMaterial/GainMul.outputs:out>
+            float inputs:in2.connect = </Root/BeetleMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "OneMinusI"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1
+            float inputs:in2.connect = </Root/BeetleMaterial.inputs:Intensity>
+            float outputs:out
+        }
+
+        def Shader "GrayC"
+        {
+            uniform token info:id = "ND_constant_color3"
+            color3f inputs:value = (0.5, 0.5, 0.5) (
+                colorSpace = "srgb_texture"
+            )
+            color3f outputs:out
+        }
+
+        def Shader "GrayTerm"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/BeetleMaterial/GrayC.outputs:out>
+            float inputs:in2.connect = </Root/BeetleMaterial/OneMinusI.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/BeetleMaterial/IntensityEff.outputs:out>
+            color3f inputs:in2.connect = </Root/BeetleMaterial/GrayTerm.outputs:out>
+            color3f outputs:out
+        }
+
         def Shader "Unlit"
         {
             uniform token info:id = "ND_realitykit_unlit_surfaceshader"
-            color3f inputs:color.connect = </Root/BeetleMaterial/GainMul.outputs:out>
+            color3f inputs:color.connect = </Root/BeetleMaterial/IntensityBlend.outputs:out>
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out
