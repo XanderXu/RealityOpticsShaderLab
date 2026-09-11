@@ -38,7 +38,9 @@ struct OpticsSceneView: View {
                         child.orientation = simd_quatf(angle: spin * 0.4, axis: SIMD3(0, 1, 0)) * lean
                     } else if child.name == "BirefrRuler" {
                         child.orientation = simd_quatf(angle: spin * 0.25, axis: SIMD3(0, 1, 0)) * rulerLean
-                    } else if child.name == "MorphoWing" {
+                    } else if child.name == "MorphoWing" || child.name == "DragonflyWing" {
+                        // Wings oscillate instead of spinning: a spinning plane
+                        // goes edge-on to the camera half the time.
                         let sway = sin(spin * 0.5) * 0.6
                         child.orientation = simd_quatf(angle: sway, axis: SIMD3(0, 1, 0))
                     } else {
