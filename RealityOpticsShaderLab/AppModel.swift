@@ -19,7 +19,9 @@ struct SettingSpec: Identifiable {
         self.get = get
         self.set = { value in
             guard value.isFinite else { return }
-            set(min(max(value, range.lowerBound), range.upperBound))
+            let clamped = min(max(value, range.lowerBound), range.upperBound)
+            guard clamped != get() else { return }
+            set(clamped)
         }
     }
 }
@@ -202,12 +204,6 @@ final class AppModel {
     private(set) var dragonflyMaterial: ShaderGraphMaterial?
     private(set) var chameleonMaterial: ShaderGraphMaterial?
     private(set) var scarabMaterial: ShaderGraphMaterial?
-    private(set) var filmLUT: LUTTexture?
-    private(set) var gratingLUT: LUTTexture?
-    private(set) var nacreLUT: LUTTexture?
-    private(set) var birefringenceLUT: LUTTexture?
-    private(set) var morphoLUT: LUTTexture?
-    private(set) var newtonLUT: LUTTexture?
     private(set) var statusMessage = "Booting optics…"
 
     /// Bumped whenever a material is (re)created or re-parameterized.
@@ -220,8 +216,14 @@ final class AppModel {
     weak var sceneRoot: Entity?
 
     private var rebuildTask: Task<Void, Never>?
-    private var isBuilding = false
-    private var hasBuilt = false
+    @ObservationIgnored private let resources = OpticsResources()
+    @ObservationIgnored private let meshes = OpticsMeshes()
+    @ObservationIgnored private var loadTasks: [OpticsEffect: Task<Void, Error>] = [:]
+    @ObservationIgnored private var parameterHandles: [String: MaterialParameters.Handle] = [:]
+    private var appliedFilmIOR: Float?
+    private let launchTime = ContinuousClock.now
+    private var reportedFirstReady = false
+    var isLoadingSelected: Bool { material(for: selectedEffect) == nil }
     private var parameterErrors: [String] = []
 
     func report(error: String) {
@@ -478,96 +480,58 @@ final class AppModel {
                             get: { [weak self] in self?.scarabGain ?? 0 },
                             set: { [weak self] in self?.scarabGain = $0 }),
             ]
-        default:
-            return []
         }
     }
 
     // MARK: - Build
 
-    func buildAll() async throws {
-        guard !isBuilding && !hasBuilt else { return }
-        isBuilding = true
-        defer { isBuilding = false }
-        statusMessage = "Integrating spectra…"
-        parameterErrors.removeAll()
-        let initialIOR = soapIOR
-        let started = ContinuousClock.now
-
-        // Independent CPU LUTs can be integrated concurrently. The previous
-        // sequence awaited each one before starting the next.
-        let filmTask = Task.detached(priority: .userInitiated) { LUTFactory.makeFilmLUT(ior: initialIOR) }
-        let gratingTask = Task.detached(priority: .userInitiated) { LUTFactory.makeGratingLUT() }
-        let nacreTask = Task.detached(priority: .userInitiated) { LUTFactory.makeNacreLUT() }
-        let birefrTask = Task.detached(priority: .userInitiated) { LUTFactory.makeBirefringenceLUT() }
-        let morphoTask = Task.detached(priority: .userInitiated) { LUTFactory.makeMorphoLUT() }
-        let newtonTask = Task.detached(priority: .userInitiated) { LUTFactory.makeNewtonLUT() }
-        defer {
-            filmTask.cancel(); gratingTask.cancel(); nacreTask.cancel()
-            birefrTask.cancel(); morphoTask.cancel(); newtonTask.cancel()
-        }
-        let filmTexture = try LUTTexture(width: 256, height: 256)
-        try filmTexture.upload(halves: await filmTask.value)
-        let gratingTexture = try LUTTexture(width: 256, height: 128)
-        try gratingTexture.upload(halves: await gratingTask.value)
-        let nacreTexture = try LUTTexture(width: 256, height: 256)
-        try nacreTexture.upload(halves: await nacreTask.value)
-        let birefrTexture = try LUTTexture(width: 1024, height: 1)
-        try birefrTexture.upload(halves: await birefrTask.value)
-        let morphoTexture = try LUTTexture(width: 256, height: 256)
-        try morphoTexture.upload(halves: await morphoTask.value)
-        let newtonTexture = try LUTTexture(width: 256, height: 512)
-        try newtonTexture.upload(halves: await newtonTask.value)
-        try Task.checkCancellation()
-        filmLUT = filmTexture
-        gratingLUT = gratingTexture
-        nacreLUT = nacreTexture
-        birefringenceLUT = birefrTexture
-        morphoLUT = morphoTexture
-        newtonLUT = newtonTexture
-
-        let textures: [OpticsEffect: [String: TextureResource]] = [
-            .thinFilm: ["FilmLUT": filmTexture.resource],
-            .grating: ["GratingLUT": gratingTexture.resource],
-            .nacre: ["NacreLUT": nacreTexture.resource],
-            .opal: ["OpalLUT": gratingTexture.resource],
-            .birefringence: ["PhaseLUT": birefrTexture.resource],
-            .morpho: ["MorphoLUT": morphoTexture.resource],
-            .beetle: ["FilmLUT": morphoTexture.resource, "RainbowLUT": gratingTexture.resource],
-            .feather: ["FilmLUT": morphoTexture.resource],
-            .hologram: ["HoloLUT": gratingTexture.resource],
-            .newton: ["NewtonLUT": newtonTexture.resource],
-            .pearl: ["PearlLUT": nacreTexture.resource],
-            .dragonfly: ["FilmLUT": morphoTexture.resource],
-            .chameleon: ["ChromaLUT": gratingTexture.resource],
-            .scarab: ["ScarabLUT": morphoTexture.resource],
-        ]
-        var failures: [String] = []
-        for effect in OpticsEffect.allCases {
+    /// SwiftUI cancels the previous selection's waiter; shared resource work
+    /// finishes into the cache and cannot overwrite the new selection's status.
+    func prepareSelectedEffect() async {
+        let effect = selectedEffect
+        let start = ContinuousClock.now
+        statusMessage = "正在加载\(effect.menuTitle)…"
+        do {
+            try await ensureLoaded(effect)
             try Task.checkCancellation()
-            do {
-                let name = effect.materialName
-                var material = try await ShaderGraphMaterial(
-                    named: "/Root/\(name)", from: "Materials/\(name).usda", in: opticsContentBundle
-                )
-                for (name, texture) in textures[effect, default: [:]] {
-                    try material.setParameter(name: name, value: .textureResource(texture))
-                }
-                material.faceCulling = .none
-                store(material, for: effect)
-                pushParameters(for: effect)
-                pushIntensity(for: effect)
-            } catch {
-                failures.append("\(effect.menuTitle): \(error.localizedDescription)")
+            guard selectedEffect == effect else { return }
+            if effect == .thinFilm, appliedFilmIOR != soapIOR {
+                rebuildFilmLUT()
+                await rebuildTask?.value
             }
+            try Task.checkCancellation()
+            guard selectedEffect == effect else { return }
+            // A failed or superseded IOR update must not be reported as Ready.
+            if effect == .thinFilm, appliedFilmIOR != soapIOR { return }
+            if parameterErrors.isEmpty { statusMessage = "Ready" }
+            if !reportedFirstReady {
+                reportedFirstReady = true
+                print("OPTICS_PERF FIRST_READY \(effect.rawValue): \(launchTime.duration(to: .now))")
+            }
+            print("OPTICS_PERF SELECT \(effect.rawValue): \(start.duration(to: .now)); templates=\(resources.templateCount), textures=\(resources.textureCount), textureBytes=\(resources.textureBytes)")
+            fflush(stdout)
+        } catch is CancellationError {
+            // A newer selection owns the visible status.
+        } catch {
+            if selectedEffect == effect { report(error: "加载失败：\(error.localizedDescription)") }
         }
-        failures.append(contentsOf: parameterErrors)
-        hasBuilt = failures.isEmpty
-        statusMessage = hasBuilt ? "Ready" : failures.joined(separator: "\n")
-        let loaded = OpticsEffect.allCases.filter { material(for: $0) != nil }.count
-        print("Optics build: \(loaded)/\(OpticsEffect.allCases.count) materials, \(started.duration(to: .now))")
-        // Sliders can change during startup, before filmLUT exists.
-        if hasBuilt && soapIOR != initialIOR { rebuildFilmLUT() }
+    }
+
+    private func ensureLoaded(_ effect: OpticsEffect) async throws {
+        if material(for: effect) != nil { return }
+        if let pending = loadTasks[effect] { return try await pending.value }
+        let task = Task { @MainActor in
+            let initialIOR = soapIOR
+            let material = try await resources.material(for: effect, soapIOR: initialIOR)
+            store(material, for: effect)
+            if effect == .thinFilm { appliedFilmIOR = initialIOR }
+            // Use current controls, not the values from when loading began.
+            pushParameters(for: effect)
+            pushIntensity(for: effect)
+        }
+        loadTasks[effect] = task
+        defer { loadTasks[effect] = nil }
+        try await task.value
     }
 
     private func pushParameters(for effect: OpticsEffect) {
@@ -597,10 +561,7 @@ final class AppModel {
     /// The external capture script takes a screenshot at each DEFAULT marker.
     func runShaderAuditIfRequested() async throws {
         guard ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1" else { return }
-        guard hasBuilt else {
-            throw NSError(domain: "OpticsAudit", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: statusMessage])
-        }
+        try await ensureLoaded(selectedEffect)
         let originalEffect = selectedEffect
         let originalAnimation = isAnimating
         defer {
@@ -612,6 +573,7 @@ final class AppModel {
             ? [originalEffect] : OpticsEffect.allCases
         for effect in effects {
             selectedEffect = effect
+            try await ensureLoaded(effect)
             let specs = settingsFor(effect)
             let saved = specs.map { $0.get() }
             defer { for (spec, value) in zip(specs, saved) { spec.set(value) } }
@@ -638,6 +600,97 @@ final class AppModel {
         print("OPTICS_AUDIT PASS: \(effects.count) materials, default/min/max scenes, no binding failures")
         fflush(stdout)
     }
+    /// Explicit development regression for lazy loading, coalescing and instances.
+    func runPerformanceAuditIfRequested() async throws {
+        guard ProcessInfo.processInfo.environment["OPTICS_PERF_AUDIT"] == "1" else { return }
+        defer { fflush(stdout) }
+        func check(_ condition: @autoclosure () -> Bool, _ message: String) throws {
+            if !condition() { throw NSError(domain: "OpticsPerformance", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: message]) }
+        }
+        let original = selectedEffect
+        let originalIOR = soapIOR
+        let originalGain = nacreGain
+        defer {
+            selectedEffect = original
+            soapIOR = originalIOR
+            nacreGain = originalGain
+        }
+        try await ensureLoaded(.thinFilm)
+        try check(resources.templateCount == 1 && resources.textureCount == 1, "Cold start eagerly loaded extra resources")
+        print("OPTICS_PERF_AUDIT lazy start: 1 template / 1 LUT")
+
+        async let nacreA: Void = ensureLoaded(.nacre)
+        async let nacreB: Void = ensureLoaded(.nacre)
+        async let morpho: Void = ensureLoaded(.morpho)
+        _ = try await (nacreA, nacreB, morpho)
+        try check(resources.templateCount == 1 && resources.textureCount == 3, "Film-family template / request reuse failed")
+        try check(nacreMaterial?.getParameter(name: "Opacity") == .float(1), "Nacre opacity changed")
+        try check(morphoMaterial?.getParameter(name: "Opacity") == .float(0.92), "Morpho opacity changed")
+        let filmGainBefore = filmMaterial?.getParameter(name: "Gain")
+        let morphoGainBefore = morphoMaterial?.getParameter(name: "Gain")
+        nacreGain = 2.7
+        try check(filmMaterial?.getParameter(name: "Gain") == filmGainBefore
+            && morphoMaterial?.getParameter(name: "Gain") == morphoGainBefore,
+            "One material instance mutated another instance")
+        nacreGain = originalGain
+        print("OPTICS_PERF_AUDIT instances: 3 effects / 1 template; independent parameters")
+
+        let before = resources.textureBuildCount
+        async let textureA = resources.texture(.film(ior: 1.234))
+        async let textureB = resources.texture(.film(ior: 1.234))
+        async let textureC = resources.texture(.film(ior: 1.234))
+        let (a, b, c) = try await (textureA, textureB, textureC)
+        try check(a === b && b === c && resources.textureBuildCount == before + 1, "Duplicate LUT compute dispatch")
+        print("OPTICS_PERF_AUDIT coalescing: 3 concurrent requests / 1 dispatch")
+
+        // Cancel the waiter while a cold material is loading. Its shared task
+        // may complete into cache, but it must not replace the selected status.
+        selectedEffect = .hologram
+        let obsolete = Task { await prepareSelectedEffect() }
+        try await Task.sleep(for: .milliseconds(10))
+        selectedEffect = .thinFilm
+        obsolete.cancel()
+        await prepareSelectedEffect()
+        await obsolete.value
+        try await ensureLoaded(.hologram)
+        try check(selectedEffect == .thinFilm && statusMessage == "Ready", "Stale selection overwrote current state")
+        print("OPTICS_PERF_AUDIT cancelled selection: current effect remains Ready")
+
+        let dragBefore = resources.textureBuildCount
+        for i in 0..<30 { soapIOR = 1.2 + Float(i) * 0.005 }
+        await rebuildTask?.value
+        try check(appliedFilmIOR == soapIOR && resources.textureBuildCount <= dragBefore + 1,
+            "IOR drag did not coalesce / last value lost")
+        // Returning to the currently displayed value cancels an in-flight edit.
+        let displayed = soapIOR
+        soapIOR = 1.44
+        soapIOR = displayed
+        await rebuildTask?.value
+        try check(statusMessage == "Ready" && appliedFilmIOR == displayed, "Cancelled IOR edit left stale loading status")
+        for value: Float in [1.21, 1.24, 1.27, 1.30, 1.36, 1.40] {
+            soapIOR = value
+            await rebuildTask?.value
+        }
+        try check(resources.variableTextureCount <= 4, "IOR cache grew beyond four variants")
+        soapIOR = originalIOR
+        await rebuildTask?.value
+        print("OPTICS_PERF_AUDIT IOR: last edit wins; four-variant LRU bound")
+
+        for effect in OpticsEffect.allCases { try await ensureLoaded(effect) }
+        try check(resources.templateCount == 14, "Expected 14 templates for 16 effects")
+        let builds = resources.textureBuildCount
+        let loads = resources.templateLoadCount
+        let start = ContinuousClock.now
+        for _ in 0..<10 {
+            for effect in OpticsEffect.allCases { try await ensureLoaded(effect) }
+        }
+        try check(resources.textureBuildCount == builds && resources.templateLoadCount == loads, "Warm selections rebuilt resources")
+        try check(parameterErrors.isEmpty, "Parameter binding failed")
+        print("OPTICS_PERF_AUDIT warm: 160 cached material requests in \(start.duration(to: .now)); zero rebuilds")
+        print("OPTICS_PERF_AUDIT PASS: lazy/coalesced resources, isolated material instances, cancelled selection, bounded IOR cache; templates=\(resources.templateCount), textures=\(resources.textureCount), textureBytes=\(resources.textureBytes)")
+        fflush(stdout)
+    }
     #endif
 
     // MARK: - Scene object management
@@ -660,282 +713,25 @@ final class AppModel {
         case .dragonfly: return "DragonflyWing"
         case .chameleon: return "ChameleonSkin"
         case .scarab: return "ScarabShell"
-        default: return "Placeholder"
         }
     }
 
-    /// Shows exactly one object: the effect's shader-carrying mesh, or a
-    /// placeholder for effects not yet implemented. Called from the scene's
-    /// make closure (via an unstructured Task, so observable reads here never
-    /// re-trigger the make closure) and on materialRevision/effect changes.
+    /// Reuse four mesh resources across all 16 effects; only one entity is live.
     func syncSceneObjects() {
         guard let root = sceneRoot else { return }
         let effect = selectedEffect
         let keep = entityName(for: effect)
-
-        // Remove entities that belong to a different effect.
-        let knownNames = OpticsEffect.allCases.map { entityName(for: $0) } + ["Placeholder"]
-        for name in knownNames where name != keep {
-            root.findEntity(named: name)?.removeFromParent()
+        if let current = root.children.first, current.name != keep { current.removeFromParent() }
+        guard let material = material(for: effect) else { return }
+        if let current = root.children.first {
+            assign(material, to: current)
+            return
         }
-
-        switch effect {
-        case .thinFilm:
-            guard let film = filmMaterial else { return }
-            if let bubble = root.findEntity(named: keep) {
-                assign(film, to: bubble)
-            } else {
-                let bubble = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [film]
-                )
-                bubble.name = keep
-                bubble.position = SIMD3(0, -0.02, 0)
-                root.addChild(bubble)
-            }
-
-        case .nacre:
-            guard let nacre = nacreMaterial else { return }
-            if let shell = root.findEntity(named: keep) {
-                assign(nacre, to: shell)
-            } else {
-                let shell = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [nacre]
-                )
-                shell.name = keep
-                shell.position = SIMD3(0, -0.02, 0)
-                root.addChild(shell)
-            }
-
-        case .opal:
-            guard let opal = opalMaterial else { return }
-            if let stone = root.findEntity(named: keep) {
-                assign(opal, to: stone)
-            } else {
-                let stone = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [opal]
-                )
-                stone.name = keep
-                stone.position = SIMD3(0, -0.02, 0)
-                root.addChild(stone)
-            }
-
-        case .birefringence:
-            guard let birefr = birefringenceMaterial else { return }
-            if let ruler = root.findEntity(named: keep) {
-                assign(birefr, to: ruler)
-            } else {
-                let ruler = ModelEntity(
-                    mesh: .generateBox(width: 0.36, height: 0.02, depth: 0.07),
-                    materials: [birefr]
-                )
-                ruler.name = keep
-                ruler.position = SIMD3(0, -0.03, 0)
-                root.addChild(ruler)
-            }
-
-        case .speckle:
-            guard let speckle = speckleMaterial else { return }
-            if let screen = root.findEntity(named: keep) {
-                assign(speckle, to: screen)
-            } else {
-                let screen = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [speckle]
-                )
-                screen.name = keep
-                screen.position = SIMD3(0, -0.02, 0)
-                root.addChild(screen)
-            }
-
-        case .morpho:
-            guard let morpho = morphoMaterial else { return }
-            if let wing = root.findEntity(named: keep) {
-                assign(morpho, to: wing)
-            } else {
-                let wing = ModelEntity(
-                    mesh: .generatePlane(width: 0.34, height: 0.2),
-                    materials: [morpho]
-                )
-                wing.name = keep
-                wing.position = SIMD3(0, -0.02, -0.02)
-                root.addChild(wing)
-            }
-
-        case .beetle:
-            guard let beetle = beetleMaterial else { return }
-            if let shell = root.findEntity(named: keep) {
-                assign(beetle, to: shell)
-            } else {
-                let shell = ModelEntity(
-                    mesh: .generateSphere(radius: 0.12),
-                    materials: [beetle]
-                )
-                // Elongated elytra silhouette
-                shell.scale = SIMD3(1.15, 0.8, 1.5)
-                shell.name = keep
-                shell.position = SIMD3(0, -0.02, 0)
-                root.addChild(shell)
-            }
-
-        case .feather:
-            guard let feather = featherMaterial else { return }
-            if let vane = root.findEntity(named: keep) {
-                assign(feather, to: vane)
-            } else {
-                let vane = ModelEntity(
-                    mesh: .generatePlane(width: 0.34, height: 0.2),
-                    materials: [feather]
-                )
-                vane.name = keep
-                vane.position = SIMD3(0, -0.02, -0.02)
-                root.addChild(vane)
-            }
-
-        case .grating:
-            guard let grating = gratingMaterial else { return }
-            if let cd = root.findEntity(named: keep) {
-                assign(grating, to: cd)
-            } else if let disc = try? DiscMesh.make(
-                innerRadius: 0.035,
-                outerRadius: 0.22,
-                slope: 0.20
-            ) {
-                let cd = ModelEntity(mesh: disc, materials: [grating])
-                cd.name = keep
-                cd.position = SIMD3(0, -0.06, 0)
-                root.addChild(cd)
-            }
-
-        case .hologram:
-            guard let holo = hologramMaterial else { return }
-            if let card = root.findEntity(named: keep) {
-                assign(holo, to: card)
-            } else {
-                let card = ModelEntity(
-                    mesh: .generatePlane(width: 0.28, height: 0.16),
-                    materials: [holo]
-                )
-                card.name = keep
-                card.position = SIMD3(0, -0.02, 0)
-                root.addChild(card)
-            }
-
-        case .lcd:
-            guard let lcd = lcdMaterial else { return }
-            if let panel = root.findEntity(named: keep) {
-                assign(lcd, to: panel)
-            } else {
-                let panel = ModelEntity(
-                    mesh: .generatePlane(width: 0.3, height: 0.22),
-                    materials: [lcd]
-                )
-                panel.name = keep
-                panel.position = SIMD3(0, -0.02, 0)
-                root.addChild(panel)
-            }
-
-        case .newton:
-            guard let newton = newtonMaterial else { return }
-            if let plate = root.findEntity(named: keep) {
-                assign(newton, to: plate)
-            } else {
-                let plate = ModelEntity(
-                    mesh: .generatePlane(width: 0.26, height: 0.26),
-                    materials: [newton]
-                )
-                plate.name = keep
-                plate.position = SIMD3(0, -0.02, 0)
-                root.addChild(plate)
-            }
-
-        case .pearl:
-            guard let pearl = pearlMaterial else { return }
-            if let orb = root.findEntity(named: keep) {
-                assign(pearl, to: orb)
-            } else {
-                let orb = ModelEntity(
-                    mesh: .generateSphere(radius: 0.1),
-                    materials: [pearl]
-                )
-                orb.name = keep
-                orb.position = SIMD3(0, -0.02, 0)
-                root.addChild(orb)
-            }
-
-        case .dragonfly:
-            guard let wing = dragonflyMaterial else { return }
-            if let vane = root.findEntity(named: keep) {
-                assign(wing, to: vane)
-            } else {
-                let vane = ModelEntity(
-                    mesh: .generatePlane(width: 0.32, height: 0.2),
-                    materials: [wing]
-                )
-                vane.name = keep
-                vane.position = SIMD3(0, -0.02, 0)
-                root.addChild(vane)
-            }
-
-        case .chameleon:
-            guard let skin = chameleonMaterial else { return }
-            if let patch = root.findEntity(named: keep) {
-                assign(skin, to: patch)
-            } else {
-                let patch = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [skin]
-                )
-                patch.name = keep
-                patch.position = SIMD3(0, -0.02, 0)
-                root.addChild(patch)
-            }
-
-        case .scarab:
-            guard let scarab = scarabMaterial else { return }
-            if let shell = root.findEntity(named: keep) {
-                assign(scarab, to: shell)
-            } else {
-                let shell = ModelEntity(
-                    mesh: .generateSphere(radius: 0.12),
-                    materials: [scarab]
-                )
-                shell.scale = SIMD3(1.15, 0.8, 1.5)
-                shell.name = keep
-                shell.position = SIMD3(0, -0.02, 0)
-                root.addChild(shell)
-            }
-
-        default:
-            guard root.findEntity(named: keep) == nil else { return }
-            let placeholder: ModelEntity
-            switch effect {
-            case .birefringence:
-                // Stretched plastic ruler silhouette
-                placeholder = ModelEntity(
-                    mesh: .generateBox(width: 0.36, height: 0.02, depth: 0.07),
-                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
-                )
-                placeholder.position = SIMD3(0, -0.03, 0)
-            case .morpho, .feather:
-                // Wing / feather vane silhouette
-                placeholder = ModelEntity(
-                    mesh: .generatePlane(width: 0.34, height: 0.2),
-                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
-                )
-                placeholder.position = SIMD3(0, -0.02, -0.02)
-            default:
-                placeholder = ModelEntity(
-                    mesh: .generateSphere(radius: 0.11),
-                    materials: [SimpleMaterial(color: UIColor(white: 0.78, alpha: 1), isMetallic: false)]
-                )
-                placeholder.position = SIMD3(0, -0.02, 0)
-            }
-            placeholder.name = keep
-            root.addChild(placeholder)
-        }
+        do {
+            let object = try meshes.makeEntity(for: effect, material: material)
+            object.name = keep
+            root.addChild(object)
+        } catch { report(error: "模型加载失败：\(error.localizedDescription)") }
     }
 
     private func assign(_ material: ShaderGraphMaterial, to entity: Entity) {
@@ -947,22 +743,30 @@ final class AppModel {
     // MARK: - Hot updates
 
     func rebuildFilmLUT() {
-        guard let filmLUT else { return }
-        // The IOR slider fires continuously; only the last value should win.
         rebuildTask?.cancel()
+        // Defer changes to an invisible or not-yet-loaded soap bubble.
+        guard filmMaterial != nil, selectedEffect == .thinFilm else { return }
+        guard appliedFilmIOR != soapIOR else {
+            if parameterErrors.isEmpty { statusMessage = "Ready" }
+            return
+        }
         let ior = soapIOR
-        statusMessage = "Rebuilding film LUT (IOR \(String(format: "%.3f", ior)))…"
-        rebuildTask = Task.detached(priority: .userInitiated) {
-            let bytes = LUTFactory.makeFilmLUT(ior: ior)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard !Task.isCancelled else { return }
-                do {
-                    try filmLUT.upload(halves: bytes)
-                    self.statusMessage = "Ready"
-                } catch {
-                    self.report(error: "Film LUT: \(error.localizedDescription)")
-                }
+        statusMessage = "正在更新薄膜…"
+        rebuildTask = Task { @MainActor in
+            do {
+                // Coalesce a continuous slider drag before dispatching GPU work.
+                try await Task.sleep(for: .milliseconds(120))
+                let texture = try await resources.texture(.film(ior: ior))
+                try Task.checkCancellation()
+                guard soapIOR == ior, var material = filmMaterial else { return }
+                setParam(&material, "FilmLUT", .textureResource(texture.resource))
+                filmMaterial = material
+                appliedFilmIOR = ior
+                materialRevision += 1
+                if selectedEffect == .thinFilm, parameterErrors.isEmpty { statusMessage = "Ready" }
+            } catch is CancellationError {
+            } catch {
+                if selectedEffect == .thinFilm { report(error: "薄膜更新失败：\(error.localizedDescription)") }
             }
         }
     }
@@ -1149,7 +953,6 @@ final class AppModel {
         case .dragonfly: return dragonflyMaterial
         case .chameleon: return chameleonMaterial
         case .scarab: return scarabMaterial
-        default: return nil
         }
     }
 
@@ -1171,7 +974,6 @@ final class AppModel {
         case .dragonfly: dragonflyMaterial = material
         case .chameleon: chameleonMaterial = material
         case .scarab: scarabMaterial = material
-        default: break
         }
     }
 
@@ -1184,7 +986,10 @@ final class AppModel {
 
     private func setParam(_ material: inout ShaderGraphMaterial, _ name: String, _ value: MaterialParameters.Value) {
         do {
-            try material.setParameter(name: name, value: value)
+            let handle = parameterHandles[name] ?? ShaderGraphMaterial.parameterHandle(name: name)
+            parameterHandles[name] = handle
+            guard material.getParameter(handle: handle) != value else { return }
+            try material.setParameter(handle: handle, value: value)
         } catch {
             // A typo'd parameter name must be visible, not silently ignored.
             let message = "setParameter(\(name)): \(error.localizedDescription)"

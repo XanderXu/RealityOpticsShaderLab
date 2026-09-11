@@ -31,7 +31,12 @@ struct OpticsSceneView: View {
                 // but a leaning slab's normal precesses, so the retardance path
                 // length 1/cos(θ) — and the interference colors — sweep as it turns.
                 let rulerLean = simd_quatf(angle: -0.45, axis: SIMD3(1, 0, 0))
+                var lastObject: ObjectIdentifier?
                 _ = content.subscribe(to: SceneEvents.Update.self) { event in
+                    guard let object = root.children.first else { lastObject = nil; return }
+                    let identity = ObjectIdentifier(object)
+                    guard model.isAnimating || lastObject != identity else { return }
+                    lastObject = identity
                     if model.isAnimating { spin += Float(event.deltaTime) }
                     for child in root.children {
                         if child.name == "CompactDisc" {

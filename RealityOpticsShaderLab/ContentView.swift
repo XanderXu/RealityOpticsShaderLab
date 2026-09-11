@@ -18,16 +18,21 @@ struct ContentView: View {
         }
         .padding(20)
         .frame(minWidth: 1060, minHeight: 680)
+        .task(id: model.selectedEffect) {
+            await model.prepareSelectedEffect()
+        }
+        #if DEBUG
         .task {
             do {
-                try await model.buildAll()
-                #if DEBUG
                 try await model.runShaderAuditIfRequested()
-                #endif
+                try await model.runPerformanceAuditIfRequested()
             } catch {
                 model.report(error: "Error: \(error.localizedDescription)")
+                print("OPTICS_AUDIT FAIL: \(error.localizedDescription)")
+                fflush(stdout)
             }
         }
+        #endif
     }
 
     private var header: some View {
@@ -72,6 +77,15 @@ struct ContentView: View {
 
             OpticsSceneView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay {
+                    if model.isLoadingSelected {
+                        if model.statusMessage.contains("失败") {
+                            Button("重新加载") { Task { await model.prepareSelectedEffect() } }
+                        } else {
+                            ProgressView("正在准备\(model.selectedEffect.menuTitle)…")
+                        }
+                    }
+                }
 
             VStack(spacing: 14) {
                 Text("调整右侧参数，观察色彩与纹理的变化")

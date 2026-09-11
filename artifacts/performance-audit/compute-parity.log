@@ -1,0 +1,9 @@
+PASS film(ior: 1.333): max=0.0009765625, RMSE=5.438317452399098e-05, CPU=0.209158167 seconds, GPU submission+wait=0.003366291 seconds
+PASS film(ior: 1.2): max=0.0009765625, RMSE=4.904734335009695e-05, CPU=0.206285875 seconds, GPU submission+wait=0.002751791 seconds
+PASS film(ior: 1.45): max=0.0009765625, RMSE=5.595705239181486e-05, CPU=0.210125292 seconds, GPU submission+wait=0.003876666 seconds
+PASS morpho: max=0.0009765625, RMSE=5.6961098035360536e-05, CPU=0.209714166 seconds, GPU submission+wait=0.004855125 seconds
+PASS nacre: max=0.00048828125, RMSE=5.868084593752667e-05, CPU=0.645284208 seconds, GPU submission+wait=0.014022125 seconds
+PASS grating: max=0.00024414062, RMSE=1.2096606963457492e-05, CPU=0.0192995 seconds, GPU submission+wait=0.002505958 seconds
+PASS birefringence: max=0.0009765625, RMSE=8.766826309014039e-05, CPU=0.00063225 seconds, GPU submission+wait=0.004102208 seconds
+PASS newton: max=0.00048828125, RMSE=5.642661806453625e-05, CPU=0.100354917 seconds, GPU submission+wait=0.001283417 seconds
+PASS all full-resolution LUTs; half weights/storage, float optical arithmetic; verified vertical orientation

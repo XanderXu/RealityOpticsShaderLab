@@ -1,0 +1,26 @@
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.023923042 seconds
+OPTICS_PERF_AUDIT lazy start: 1 template / 1 LUT
+OPTICS_PERF FIRST_READY thinFilm: 1.150313125 seconds
+OPTICS_PERF SELECT thinFilm: 0.670290917 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_PERF LUT GPU nacre: 0.017149042 seconds
+OPTICS_PERF LUT GPU morpho: 0.015839791 seconds
+OPTICS_PERF_AUDIT instances: 3 effects / 1 template; independent parameters
+OPTICS_PERF LUT GPU film(ior: 1.234): 0.015123708 seconds
+OPTICS_PERF_AUDIT coalescing: 3 concurrent requests / 1 dispatch
+OPTICS_PERF SELECT thinFilm: 1.1666e-05 seconds; templates=1, textures=4, textureBytes=2097152
+OPTICS_PERF SELECT thinFilm: 0.0006465 seconds; templates=1, textures=4, textureBytes=2097152
+OPTICS_PERF LUT GPU grating: 0.069251 seconds
+OPTICS_PERF_AUDIT cancelled selection: current effect remains Ready
+OPTICS_PERF LUT GPU film(ior: 1.345): 0.002852667 seconds
+OPTICS_PERF LUT GPU film(ior: 1.21): 0.00206 seconds
+OPTICS_PERF LUT GPU film(ior: 1.24): 0.016840292 seconds
+OPTICS_PERF LUT GPU film(ior: 1.27): 0.0245135 seconds
+OPTICS_PERF LUT GPU film(ior: 1.3): 0.00443425 seconds
+OPTICS_PERF LUT GPU film(ior: 1.36): 0.012952291 seconds
+OPTICS_PERF LUT GPU film(ior: 1.4): 0.020382958 seconds
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.018305958 seconds
+OPTICS_PERF_AUDIT IOR: last edit wins; four-variant LRU bound
+OPTICS_PERF LUT GPU birefringence: 0.001891583 seconds
+OPTICS_PERF LUT GPU newton: 0.003478541 seconds
+OPTICS_PERF_AUDIT warm: 160 cached material requests in 7.1583e-05 seconds; zero rebuilds
+OPTICS_PERF_AUDIT PASS: lazy/coalesced resources, isolated material instances, cancelled selection, bounded IOR cache; templates=14, textures=9, textureBytes=4464640

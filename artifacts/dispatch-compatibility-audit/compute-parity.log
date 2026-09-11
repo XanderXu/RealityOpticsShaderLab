@@ -1,0 +1,12 @@
+2026-09-11 22:02:06.676 verify[18379:19746701] Metal API Validation Enabled
+2026-09-11 22:02:06.676 verify[18379:19746701] Metal GPU Validation Enabled
+PASS film(ior: 1.333) 256x256: max=0.0009765625, RMSE=5.438980574738084e-05, CPU=0.208681875 seconds, GPU submission+wait=0.0081035 seconds
+PASS film(ior: 1.2) 256x256: max=0.0009765625, RMSE=4.904753935592841e-05, CPU=0.206081292 seconds, GPU submission+wait=0.006721625 seconds
+PASS film(ior: 1.45) 256x256: max=0.0009765625, RMSE=5.596027105400694e-05, CPU=0.210614625 seconds, GPU submission+wait=0.008476958 seconds
+PASS morpho 256x256: max=0.0009765625, RMSE=5.6963717551990695e-05, CPU=0.219124625 seconds, GPU submission+wait=0.003912875 seconds
+PASS nacre 256x256: max=0.00048828125, RMSE=5.868068448933988e-05, CPU=0.661246917 seconds, GPU submission+wait=0.012771125 seconds
+PASS grating 256x128: max=0.00024414062, RMSE=1.2096606963457492e-05, CPU=0.019839917 seconds, GPU submission+wait=0.002140334 seconds
+PASS birefringence 1024x1: max=0.0009765625, RMSE=8.766826309014039e-05, CPU=0.000641166 seconds, GPU submission+wait=0.000733417 seconds
+PASS newton 256x512: max=0.00048828125, RMSE=5.642661806453625e-05, CPU=0.103048292 seconds, GPU submission+wait=0.003708333 seconds
+PASS film(ior: 1.333) 257x129: max=0.0009765625, RMSE=5.279843394081129e-05, CPU=0.106376625 seconds, GPU submission+wait=0.006507291 seconds
+PASS all full-resolution LUTs and padded edge groups; half weights/storage, float optical arithmetic; verified vertical orientation

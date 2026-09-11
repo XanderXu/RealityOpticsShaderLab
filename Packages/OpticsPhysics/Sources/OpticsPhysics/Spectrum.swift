@@ -95,6 +95,12 @@ public enum Spectrum {
         xyzToLinearRGB * SIMD3(cmfX[i], cmfY[i], cmfZ[i]) * (d65[i] / d65YNorm)
     }
 
+    /// Compact read-only GPU weights (half4, 8 bytes/sample). Optical phase and
+    /// the sum still use Float32; only these small color coefficients use half.
+    public static let packedHalfRGBWeights: [UInt16] = rgbWeights.flatMap {
+        [Float16($0.x).bitPattern, Float16($0.y).bitPattern, Float16($0.z).bitPattern, 0]
+    }
+
     /// Integrate reflectance against D65 and the CIE observer into linear sRGB.
     /// Out-of-gamut spectra can have negative channels; texture packing clips them.
     public static func rgb(samples: [Float]) -> SIMD3<Float> {

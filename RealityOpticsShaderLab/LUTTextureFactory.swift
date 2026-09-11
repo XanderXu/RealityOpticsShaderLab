@@ -2,18 +2,13 @@ import RealityKit
 import Metal
 import OpticsPhysics
 
-/// Owns one LowLevelTexture-backed TextureResource that can be refilled on the CPU,
-/// so physics-generated LUTs can hot-swap without rebuilding materials.
+/// One immutable RGBA16F lookup, produced on the GPU and shared by material instances.
 @MainActor
 final class LUTTexture {
-
     let lowLevelTexture: LowLevelTexture
     let resource: TextureResource
     let width: Int
     let height: Int
-
-    private let device: MTLDevice
-    private let commandQueue: MTLCommandQueue
 
     init(width: Int, height: Int) throws {
         var descriptor = LowLevelTexture.Descriptor()
@@ -25,93 +20,114 @@ final class LUTTexture {
         descriptor.mipmapLevelCount = 1
         descriptor.pixelFormat = .rgba16Float
         descriptor.textureUsage = [.shaderRead, .shaderWrite]
-        descriptor.swizzle = .init(red: .red, green: .green, blue: .blue, alpha: .alpha)
-
         self.lowLevelTexture = try LowLevelTexture(descriptor: descriptor)
         self.width = width
         self.height = height
-        guard let device = MTLCreateSystemDefaultDevice(),
-              let commandQueue = device.makeCommandQueue() else {
-            throw NSError(domain: "RealityOpticsShaderLab", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Metal unavailable"])
-        }
-        self.device = device
-        self.commandQueue = commandQueue
         self.resource = try TextureResource(from: lowLevelTexture)
-    }
-
-    /// Replace the contents with new RGBA16F halves (width*height*4 entries).
-    /// Uses the documented `replace(using:)` + blit-encoder path: writing the
-    /// underlying MTLTexture directly from the CPU can deadlock against
-    /// RealityKit's in-flight frames on the simulator.
-    /// Row order is flipped here: MaterialX samples textures bottom-up while
-    /// the byte buffer is written top-down, so V axes read as authored.
-    func upload(halves: [UInt16]) throws {
-        precondition(halves.count == width * height * 4)
-        var flipped = [UInt16](repeating: 0, count: halves.count)
-        let rowLen = width * 4
-        for y in 0..<height {
-            flipped.replaceSubrange(
-                y * rowLen..<((y + 1) * rowLen),
-                with: halves[(height - 1 - y) * rowLen..<(height - y) * rowLen]
-            )
-        }
-        let byteCount = flipped.count * MemoryLayout<UInt16>.stride
-        guard let commandBuffer = commandQueue.makeCommandBuffer(),
-              let staging = device.makeBuffer(bytes: flipped, length: byteCount, options: .storageModeShared),
-              let blit = commandBuffer.makeBlitCommandEncoder() else {
-            throw NSError(domain: "RealityOpticsShaderLab", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "Could not encode LUT upload"])
-        }
-        let texture = lowLevelTexture.replace(using: commandBuffer)
-        blit.copy(
-            from: staging,
-            sourceOffset: 0,
-            sourceBytesPerRow: width * 8,
-            sourceBytesPerImage: width * height * 8,
-            sourceSize: MTLSize(width: width, height: height, depth: 1),
-            to: texture,
-            destinationSlice: 0,
-            destinationLevel: 0,
-            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
-        )
-        blit.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        guard commandBuffer.status == .completed else {
-            throw commandBuffer.error ?? NSError(domain: "RealityOpticsShaderLab", code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "GPU LUT upload failed"])
-        }
     }
 }
 
-/// Builds physics LUTs off the main actor (pure CPU work) and hands bytes back.
-enum LUTFactory {
+/// A single device/queue/pipeline for all LUTs. No CPU readback during normal use.
+@MainActor
+final class LUTRenderer {
+    private let device: MTLDevice
+    private let queue: MTLCommandQueue
+    private let weights: MTLBuffer
+    private let pipeline: MTLComputePipelineState?
 
-    nonisolated static func makeFilmLUT(ior: Float) -> [UInt16] {
-        let config = ThinFilmConfig(n1: 1.0, n2: ior, n3: 1.0, sigmaD: 15)
-        return LUTBuilder.filmLUT(width: 256, height: 256, config: config)
+    init() async throws {
+        guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
+              let weights = device.makeBuffer(bytes: Spectrum.packedHalfRGBWeights,
+                length: Spectrum.packedHalfRGBWeights.count * 2, options: .storageModeShared) else {
+            throw Self.failure("Metal unavailable")
+        }
+        self.device = device
+        self.queue = queue
+        self.weights = weights
+        if let function = device.makeDefaultLibrary()?.makeFunction(name: "buildOpticsLUT") {
+            do {
+                // Pipeline compilation may be slow on its first use; don't block UI.
+                self.pipeline = try await withCheckedThrowingContinuation { continuation in
+                    device.makeComputePipelineState(function: function) { state, error in
+                        if let state { continuation.resume(returning: state) }
+                        else { continuation.resume(throwing: error ?? Self.failure("Compute pipeline unavailable")) }
+                    }
+                }
+            } catch {
+                print("OPTICS_PERF CPU fallback: \(error.localizedDescription)")
+                self.pipeline = nil
+            }
+        } else {
+            print("OPTICS_PERF CPU fallback: buildOpticsLUT missing")
+            self.pipeline = nil
+        }
     }
 
-    nonisolated static func makeGratingLUT() -> [UInt16] {
-        return LUTBuilder.gratingLUT(width: 256, height: 128, maxOrder: 2)
+    func make(_ key: OpticsLUT) async throws -> LUTTexture {
+        let start = ContinuousClock.now
+        let result = try LUTTexture(width: key.width, height: key.height)
+        if let pipeline {
+            guard let command = queue.makeCommandBuffer(), let encoder = command.makeComputeCommandEncoder() else {
+                throw Self.failure("Could not encode LUT compute")
+            }
+            command.label = "Optics LUT \(key)"
+            encoder.setComputePipelineState(pipeline)
+            encoder.setTexture(result.lowLevelTexture.replace(using: command), index: 0)
+            encoder.setBuffer(weights, offset: 0, index: 0)
+            var parameters = key.gpuParameters
+            encoder.setBytes(&parameters, length: MemoryLayout<OpticsGPUParameters>.stride, index: 1)
+            let w = pipeline.threadExecutionWidth
+            let h = min(key.height, min(8, pipeline.maxTotalThreadsPerThreadgroup / w))
+            // Some simulator devices don't support non-uniform dispatchThreads.
+            // Round up to complete groups; the kernel rejects out-of-bounds threads.
+            encoder.dispatchThreadgroups(
+                MTLSize(width: (key.width + w - 1) / w, height: (key.height + h - 1) / h, depth: 1),
+                threadsPerThreadgroup: MTLSize(width: w, height: h, depth: 1))
+            encoder.endEncoding()
+            try await Self.complete(command)
+            print("OPTICS_PERF LUT GPU \(key): \(start.duration(to: .now))")
+        } else {
+            let pixels = await Task.detached(priority: .userInitiated) { key.referencePixels() }.value
+            try await upload(pixels, into: result)
+            print("OPTICS_PERF LUT CPU \(key): \(start.duration(to: .now))")
+        }
+        return result
     }
 
-    nonisolated static func makeNacreLUT() -> [UInt16] {
-        return LUTBuilder.nacreLUT(width: 256, height: 256)
+    private func upload(_ pixels: [UInt16], into target: LUTTexture) async throws {
+        let row = target.width * 4
+        let height = target.height
+        let flipped = await Task.detached(priority: .userInitiated) {
+            var result = [UInt16](repeating: 0, count: pixels.count)
+            for y in 0..<height {
+                result.replaceSubrange(y * row..<(y + 1) * row,
+                    with: pixels[(height - 1 - y) * row..<(height - y) * row])
+            }
+            return result
+        }.value
+        guard let command = queue.makeCommandBuffer(),
+              let staging = device.makeBuffer(bytes: flipped, length: flipped.count * 2, options: .storageModeShared),
+              let blit = command.makeBlitCommandEncoder() else { throw Self.failure("Could not encode LUT upload") }
+        blit.copy(from: staging, sourceOffset: 0, sourceBytesPerRow: target.width * 8,
+            sourceBytesPerImage: target.width * target.height * 8,
+            sourceSize: MTLSize(width: target.width, height: target.height, depth: 1),
+            to: target.lowLevelTexture.replace(using: command), destinationSlice: 0, destinationLevel: 0,
+            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
+        blit.endEncoding()
+        try await Self.complete(command)
     }
 
-    nonisolated static func makeBirefringenceLUT() -> [UInt16] {
-        return LUTBuilder.birefringenceLUT(width: 1024)
+    private static func complete(_ command: MTLCommandBuffer) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            command.addCompletedHandler { completed in
+                if completed.status == .completed { continuation.resume() }
+                else { continuation.resume(throwing: completed.error ?? failure("GPU LUT generation failed")) }
+            }
+            command.commit()
+        }
     }
 
-    nonisolated static func makeNewtonLUT() -> [UInt16] {
-        LUTBuilder.newtonLUT(width: 256, height: 512)
-    }
-
-    nonisolated static func makeMorphoLUT() -> [UInt16] {
-        // Chitin (n≈1.56), moderate ridge spread: wide-angle blue film.
-        let config = ThinFilmConfig(n2: 1.56, sigmaD: 30)
-        return LUTBuilder.filmLUT(width: 256, height: 256, config: config)
+    nonisolated private static func failure(_ message: String) -> NSError {
+        NSError(domain: "OpticsLUT", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }

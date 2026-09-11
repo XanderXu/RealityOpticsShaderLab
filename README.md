@@ -4,6 +4,8 @@
 
 2026-09-11 已完成全量计算与材质审查，修复坐标系、标准色度数据、牛顿环介质、白光相位、边界采样和数值稳定性等问题。详见 [逐项审查与验证记录](docs/SHADER_AUDIT.md)。
 
+性能版已改为按选中效果懒加载、GPU Compute 生成 LUT 和共享材质实例；模拟器首个效果约 1.3 秒就绪。详见 [性能改动、实测与复现](docs/PERFORMANCE.md)。
+
 ## 效果目录（全部已实现）
 
 | 效果 | 模型 / 近似 | 实现 | 几何 |
@@ -39,24 +41,24 @@
 
 ## 架构
 
-```
-┌─────────────── CPU（Swift，物理模拟）───────────────┐
-│ Spectrum:  CIE 1931 CMF × D65 → XYZ → 线性 sRGB      │
-│ ThinFilm:   精确 Fresnel (s/p) + Airy 求和 + σd 抗混叠 │
-│ Grating:    sinθi − sinθo = mλ/d，多阶光谱合成        │
-│ LUTBuilder: 光谱积分 → RGBA16F 字节                    │
-└────────────────────┬──────────────────────────────────┘
-                     │ LowLevelTexture(descriptor: .rgba16Float)
-                     │ replace(using:) + staging buffer blit ← 可热更新
-                     ▼ TextureResource(from:)
-┌─────────── GPU（手写 .usda MaterialX 材质图）──────────┐
-│ NdotV / 厚度(remap+fractal3d) → combine2 → 采样 LUT     │
-│ → multiply → ND_realitykit_unlit (color + opacity)     │
-│ 参数经 ShaderGraphMaterial.setParameter 注入            │
-└─────────────────────────────────────────────────────────┘
+```text
+选择效果 → AppModel.ensureLoaded（合并并发请求）
+             ├─ OpticsResources：按需加载 ShaderGraph 模板 / 复制参数实例
+             └─ OpticsLUT：只请求该效果依赖的 LUT
+                      ↓
+               LUTRenderer + OpticsLUT.metal
+               81 波长光谱积分 → LowLevelTexture.replace(using:)
+                      ↓
+               RGBA16F TextureResource（共享缓存）
+                      ↓
+               ShaderGraph：视角/厚度查表 → Unlit
 ```
 
-物理在 CPU 完整做光谱积分（380–780nm，81 采样），烘焙成 2D LUT；材质图只做廉价的每像素查表与几何计算。改 IOR 滑杆会后台重建薄膜 LUT 并热替换，无需重建材质。
+正常路径在 GPU 生成 LUT：颜色权重使用 half4，光学相位、Fresnel 和光谱累加保留 float32，结果存为 RGBA16F。CPU 物理包作为独立数值参考及 Compute pipeline 不可用时的回退。GPU 完成以异步回调通知，不在主线程同步等待。
+
+仅在首次访问效果时加载模板和依赖。薄膜、珍珠母、闪蝶使用同一个 ShaderGraph 模板的参数实例，16 种效果共 14 个运行时模板。光栅及几丁质等 LUT 在多个效果间共享。IOR 滑杆以 120 ms 合并连续输入，最多缓存 4 个 IOR 版本，旧请求不能覆盖最新值。其他效果的调参只改材质参数。
+
+场景同时保留一个实体，复用球、平面、尺子、光盘四种网格资源；暂停时跳过重复的逐帧姿态写入。视线相关的颜色计算仍在 ShaderGraph 中实时执行。
 
 ## 目录
 
@@ -64,19 +66,23 @@
 RealityOpticsShaderLab/
 ├── RealityOpticsShaderLab.xcodeproj  # visionOS 2.0+，objectVersion 77（文件系统同步组）
 ├── RealityOpticsShaderLab/           # App：RealityView 场景 + 控制面板 + LUT 纹理工厂
-│   ├── AppModel.swift             # 参数状态、材质加载、LUT 热更新
+│   ├── AppModel.swift             # 参数状态、按需加载、取消与热更新
+│   ├── OpticsResources.swift      # LUT / 材质模板缓存、参数实例
+│   ├── OpticsLUT.metal            # GPU 光谱积分，half 权重 / float 相位
+│   ├── OpticsMeshes.swift         # 四种共享网格资源
 │   ├── ContentView.swift          # 三栏工作区、预览标题、旋转控制与状态
 │   ├── EffectLibraryView.swift    # 双列效果库
 │   ├── ParameterPanelView.swift   # 独立滚动参数卡片与折叠说明
 │   ├── OpticsEffect.swift         # 16 种效果的名称、图标与机制说明
 │   ├── OpticsSceneView.swift      # 自适应 RealityView、转台式自转
 │   ├── DiscMesh.swift             # 微锥形 CD 网格（UV 副切线提供径向，绕序与法线一致）
-│   └── LUTTextureFactory.swift    # LowLevelTexture → TextureResource → upload()
+│   └── LUTTextureFactory.swift    # GPU Compute → LowLevelTexture / CPU 回退
 ├── Packages/OpticsPhysics/        # 纯 Swift 物理包（swift test 可在 macOS 直接跑）
 │   ├── Spectrum.swift             # 官方 CIE CMF / D65 / 预计算线性 RGB 积分权重
 │   ├── ThinFilm.swift             # 三层膜反射率光谱
 │   ├── DiffractionGrating.swift   # 光栅方程 + 阶数合成
-│   └── LUTBuilder.swift           # 薄膜/光栅/珠光/相位/牛顿环 LUT + Float16
+│   ├── LUTBuilder.swift           # CPU 参考：光谱 LUT + Float16
+│   └── OpticsLUT.swift             # 缓存键、尺寸、GPU 参数和 CPU 参考入口
 ├── Packages/OpticsContent/        # 材质包（.usda 以松散资源随 bundle 发布）
 │   └── Materials/*.usda          # 16 个材质图
 ├── Scripts/                       # 材质图检查与模拟器自动截图
@@ -107,6 +113,9 @@ swift test --package-path Packages/OpticsPhysics -c release
 
 # 16 个材质的连接、类型、坐标、边界与参数默认值检查
 python3 Scripts/validate_materials.py
+
+# 本机 Metal 与 CPU 的逐 texel 对照（含半精度误差检查）
+python3 Scripts/verify_compute.py
 
 # 构建 + 模拟器运行
 xcodebuild -project RealityOpticsShaderLab.xcodeproj -scheme RealityOpticsShaderLab \
