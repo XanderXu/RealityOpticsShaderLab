@@ -54,6 +54,15 @@ enum PreviewLayout {
     static let columnSpacing: Float = 0.29
     static let rowSpacing: Float = 0.26
 
+    /// Height of the board origin above a horizontal AR placement point.
+    /// Account for camera tilt, zoom and every sample's full rotation envelope.
+    static func surfaceClearance(orientation: simd_quatf, scale: Float) -> Float {
+        let lowest = PreviewShape.allCases.map { shape in
+            orientation.act(position(for: shape)).y - shape.rotationRadius
+        }.min() ?? 0
+        return max(0, -lowest * scale) + 0.01
+    }
+
     static func position(for shape: PreviewShape, wide: Bool = false) -> SIMD3<Float> {
         let index = PreviewShape.allCases.firstIndex(of: shape)!
         return wide

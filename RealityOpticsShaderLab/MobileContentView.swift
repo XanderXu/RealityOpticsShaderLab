@@ -18,6 +18,7 @@ struct MobileContentView: View {
                 scene.frame(height: max(150, (geometry.size.height - 55) * 0.49))
                 ZStack(alignment: .bottom) {
                     controls.opacity(showsPanel ? 0 : 1).allowsHitTesting(!showsPanel)
+                        .accessibilityHidden(showsPanel)
                     if showsPanel {
                         drawer.transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -273,13 +274,22 @@ struct MobileContentView: View {
         try check(simd_length(paused - sample.orientation.vector) > 0.02, "Resume did not restart rotation")
         model.isAnimating = false
         print("OPTICS_MOBILE_AUDIT rotation: advances / pauses / resumes")
+        guard let auditScene = model.auditMobileScene else { throw NSError(domain: "OpticsMobile", code: 3) }
+        try await auditScene()
         try await capture("controls")
         panel = 0; showsPanel = true
         try await capture("library")
+        let sampleIdentities = root.children.map { ObjectIdentifier($0) }
         model.selectedEffect = .lenticular
         await model.prepareSelectedEffect()
         try check(panel == 0 && showsPanel, "Effect selection changed the active panel")
         try check(model.sceneRoot === root && root.children.count == 4, "Drawer rebuilt the scene")
+        try check(root.children.map { ObjectIdentifier($0) } == sampleIdentities,
+                  "Cold material selection recreated sample entities")
+        try check(root.children.allSatisfy {
+            $0.isEnabled && ($0.components[ModelComponent.self]?.materials.first as? ShaderGraphMaterial)?
+                .getParameter(name: "Views") != nil
+        }, "Ready was reported before the selected material reached all samples")
         try await capture("library-selection")
         panel = 1
         try await capture("parameters")

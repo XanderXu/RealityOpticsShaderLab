@@ -40,6 +40,8 @@ struct MobileOpticsSceneView: UIViewRepresentable {
         private var active = false
         private var ar = false
         private var placed = false
+        private var surfacePlacement: SIMD3<Float>?
+        private var sessionInterrupted = false
         private var lastReset = 0
         private var lastSize = CGSize.zero
         private var orbit = SIMD2<Float>.zero
@@ -68,6 +70,12 @@ struct MobileOpticsSceneView: UIViewRepresentable {
             view.renderOptions.insert(.disableMotionBlur)
             view.renderOptions.insert(.disableDepthOfField)
             model.sceneRoot = root
+            #if DEBUG
+            model.auditMobileScene = { [weak self] in
+                guard let self else { throw NSError(domain: "OpticsMobileScene", code: 1) }
+                try await self.auditLifecycleAndPlacement()
+            }
+            #endif
             view.session.delegate = self
             view.session.delegateQueue = .main
             subscription = view.scene.subscribe(to: SceneEvents.Update.self) { [weak self] event in
@@ -92,6 +100,8 @@ struct MobileOpticsSceneView: UIViewRepresentable {
             if modeChanged {
                 view.session.pause()
                 placed = false
+                surfacePlacement = nil
+                sessionInterrupted = false
                 orbit = .zero; zoom = 1
                 root.transform = .identity
                 if ar {
@@ -104,18 +114,23 @@ struct MobileOpticsSceneView: UIViewRepresentable {
                     anchor.addChild(camera)
                     root.isEnabled = true
                     view.environment.background = .color(.secondarySystemGroupedBackground)
-                    fitCamera()
                 }
                 layoutSamples()
                 fitCamera()
             }
-            if ar && active && (modeChanged || becameActive) { runSession(reset: modeChanged) }
+            if ar && active && (modeChanged || becameActive) { runSession(reset: modeChanged || sessionInterrupted) }
             if becameInactive { view.session.pause() }
             if lastReset != reset { lastReset = reset; resetView() }
         }
 
         private func runSession(reset: Bool) {
             guard ARWorldTrackingConfiguration.isSupported else { return }
+            if reset {
+                placed = false
+                surfacePlacement = nil
+                root.isEnabled = false
+            }
+            sessionInterrupted = false
             let configuration = ARWorldTrackingConfiguration()
             configuration.planeDetection = [.horizontal, .vertical]
             configuration.isLightEstimationEnabled = false
@@ -137,7 +152,7 @@ struct MobileOpticsSceneView: UIViewRepresentable {
                     if let shape = PreviewShape(rawValue: child.name) { child.orientation = shape.orientation(at: spin) }
                 }
             }
-            guard ar, let frame = view.session.currentFrame else { return }
+            guard ar, preview.isAR, !sessionInterrupted, let frame = view.session.currentFrame else { return }
             if !placed, case .normal = frame.camera.trackingState { placeBoard(at: nil) }
             statusElapsed += delta
             if statusElapsed >= 0.25 {
@@ -196,53 +211,140 @@ struct MobileOpticsSceneView: UIViewRepresentable {
         @objc private func pinch(_ gesture: UIPinchGestureRecognizer) {
             if gesture.state == .began { zoomStart = zoom }
             zoom = min(1.6, max(0.65, zoomStart * Float(gesture.scale)))
-            if ar { root.scale = SIMD3(repeating: 0.6 * zoom) } else { fitCamera() }
+            if ar { updateARScale() } else { fitCamera() }
         }
         @objc private func place(_ gesture: UITapGestureRecognizer) {
-            guard ar, let view else { return }
+            guard ar, !sessionInterrupted, let view else { return }
             let hit = view.raycast(from: gesture.location(in: view), allowing: .estimatedPlane, alignment: .any).first
             placeBoard(at: hit?.worldTransform)
         }
         private func placeBoard(at hit: simd_float4x4?) {
-            guard let frame = view?.session.currentFrame else { return }
+            guard ar, active, !sessionInterrupted, let frame = view?.session.currentFrame,
+                  case .normal = frame.camera.trackingState else { return }
             let transform = frame.camera.transform
             let position = hit?.columns.3 ?? transform * SIMD4<Float>(0, 0, -0.8, 1)
             root.position = SIMD3(position.x, position.y, position.z)
-            // Keep the lower pair above a horizontal surface instead of placing
-            // the board's center on the tabletop and burying half the samples.
-            if let hit, abs(hit.columns.1.y) > 0.75 { root.position.y += 0.21 * zoom }
+            // Retain the surface point so later pinches keep the enlarged board
+            // above the table, including when the camera was tilted at placement.
+            surfacePlacement = hit.flatMap { abs($0.columns.1.y) > 0.75 ? root.position : nil }
             root.orientation = simd_quatf(transform)
-            root.scale = SIMD3(repeating: 0.6 * zoom)
+            updateARScale()
             root.isEnabled = true
             placed = true
+        }
+        private func updateARScale() {
+            let scale: Float = 0.6 * zoom
+            root.scale = SIMD3(repeating: scale)
+            if let surfacePlacement {
+                root.position = surfacePlacement + SIMD3(0,
+                    PreviewLayout.surfaceClearance(orientation: root.orientation, scale: scale), 0)
+            }
         }
         @objc private func resetGesture() { resetView() }
         private func resetView() {
             orbit = .zero; zoom = 1
-            if ar { placeBoard(at: nil) } else { fitCamera() }
+            if ar {
+                placeBoard(at: nil)
+                // Tracking may temporarily prevent repositioning; still keep the
+                // displayed scale consistent with the reset zoom control.
+                updateARScale()
+            } else { fitCamera() }
         }
         func stop() {
+            active = false; ar = false; sessionInterrupted = false
             subscription?.cancel(); subscription = nil
             view?.session.pause(); view?.session.delegate = nil
-            if model.sceneRoot === root { model.sceneRoot = nil }
+            if model.sceneRoot === root {
+                model.sceneRoot = nil
+                #if DEBUG
+                model.auditMobileScene = nil
+                #endif
+            }
         }
         nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
             let message = error.localizedDescription
             Task { @MainActor [weak self] in
-                self?.preview.useVirtual()
-                self?.preview.message = "AR 已停止：\(message)"
+                guard let self, self.ar, self.preview.isAR, self.view?.session === session else { return }
+                self.preview.useVirtual()
+                self.preview.message = "AR 已停止：\(message)"
             }
         }
         nonisolated func sessionWasInterrupted(_ session: ARSession) {
-            Task { @MainActor [weak self] in self?.preview.message = "AR 已暂停，返回应用后恢复" }
+            Task { @MainActor [weak self] in
+                guard let self, self.ar, self.preview.isAR, self.view?.session === session else { return }
+                self.sessionInterrupted = true
+                self.preview.message = "AR 已暂停，返回应用后恢复"
+            }
         }
         nonisolated func sessionInterruptionEnded(_ session: ARSession) {
             Task { @MainActor [weak self] in
-                guard let self, self.ar, self.active else { return }
-                self.placed = false; self.root.isEnabled = false
+                guard let self, self.ar, self.preview.isAR, self.active,
+                      self.view?.session === session else { return }
                 self.runSession(reset: true)
             }
         }
+        #if DEBUG
+        /// Exercise the live coordinator without requiring an AR camera in Simulator.
+        private func auditLifecycleAndPlacement() async throws {
+            guard let view else { throw NSError(domain: "OpticsMobileScene", code: 2) }
+            func check(_ condition: Bool, _ message: String) throws {
+                if !condition { throw NSError(domain: "OpticsMobileScene", code: 3,
+                    userInfo: [NSLocalizedDescriptionKey: message]) }
+            }
+            let savedTransform = root.transform
+            let savedSurface = surfacePlacement
+            let savedZoom = zoom
+            let savedActive = active
+            let savedAR = ar
+            let savedInterrupted = sessionInterrupted
+            let savedMessage = preview.message
+            defer {
+                root.transform = savedTransform
+                surfacePlacement = savedSurface
+                zoom = savedZoom
+                active = savedActive
+                ar = savedAR
+                sessionInterrupted = savedInterrupted
+                preview.message = savedMessage
+            }
+            active = false
+            // The UI has left AR, but updateUIView has not switched the coordinator
+            // yet. Deferred delegate callbacks must respect the newer user intent.
+            ar = true
+            preview.useVirtual()
+            preview.message = "3D audit"
+            sessionWasInterrupted(view.session)
+            session(view.session, didFailWithError: NSError(domain: "StaleARCallback", code: 1))
+            await Task.yield()
+            try await Task.sleep(for: .milliseconds(20))
+            try check(preview.message == "3D audit" && !sessionInterrupted,
+                      "Stale AR callbacks changed virtual preview state")
+
+            // Reuse a tabletop hit while shrinking/enlarging actual model entities.
+            // The previous fixed lift let the disc cross the table after a pinch.
+            surfacePlacement = SIMD3(0.2, 0.3, -0.8)
+            root.orientation = simd_quatf(angle: 0, axis: SIMD3(0, 1, 0))
+            for amount: Float in [1, 0.65, 1.6, 1] {
+                zoom = amount
+                updateARScale()
+                for sample in root.children {
+                    try check(sample.visualBounds(relativeTo: nil).min.y >= 0.3,
+                              "AR zoom pushed \(sample.name) below the table")
+                }
+            }
+            surfacePlacement = nil
+            let floatingPosition = root.position
+            zoom = 1.6
+            updateARScale()
+            try check(root.position == floatingPosition, "Free-space zoom moved the placement point")
+            ar = true; active = false
+            resetView()
+            try check(root.scale == SIMD3<Float>(repeating: 0.6) && zoom == 1,
+                      "Reset without tracking left the displayed zoom out of sync")
+            print("OPTICS_MOBILE_AUDIT AR regressions: stale callbacks ignored; tabletop zoom stays above surface")
+            fflush(stdout)
+        }
+        #endif
     }
 }
 #endif

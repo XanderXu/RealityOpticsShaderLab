@@ -199,7 +199,9 @@ final class AppModel {
 
     func setIntensity(_ value: Float, for effect: OpticsEffect) {
         guard value.isFinite else { return }
-        intensities[effect] = min(max(value, 0), 2)
+        let clamped = min(max(value, 0), 2)
+        guard clamped != intensity(for: effect) else { return }
+        intensities[effect] = clamped
         pushIntensity(for: effect)
     }
 
@@ -247,6 +249,16 @@ final class AppModel {
 
     /// Set once by the scene; used by the revision-driven sync to reach entities.
     weak var sceneRoot: Entity?
+
+    @ObservationIgnored private weak var synchronizedRoot: Entity?
+    @ObservationIgnored private var synchronizedEffect: OpticsEffect?
+    @ObservationIgnored private var synchronizedRevision = -1
+    #if DEBUG
+    @ObservationIgnored private var sceneMaterialAssignments = 0
+    #if os(iOS)
+    @ObservationIgnored var auditMobileScene: (() async throws -> Void)?
+    #endif
+    #endif
 
     private var rebuildTask: Task<Void, Never>?
     @ObservationIgnored private let resources = OpticsResources()
@@ -547,6 +559,9 @@ final class AppModel {
             guard selectedEffect == effect else { return }
             // A failed or superseded IOR update must not be reported as Ready.
             if effect == .thinFilm, appliedFilmIOR != soapIOR { return }
+            // Finish the visible binding before reporting Ready. SwiftUI may not
+            // have consumed the asynchronous material revision yet.
+            guard syncSceneObjects() else { return }
             if parameterErrors.isEmpty { statusMessage = "Ready" }
             if !reportedFirstReady {
                 reportedFirstReady = true
@@ -851,7 +866,9 @@ final class AppModel {
 
         func checkSamples() throws {
             syncSceneObjects()
+            let assignments = sceneMaterialAssignments
             syncSceneObjects() // Repeated updates must not add duplicate samples.
+            try check(sceneMaterialAssignments == assignments, "Unchanged scene rewrote material components")
             try check(root.children.count == previewShapes.count, "Incorrect number of live samples")
             for shape in previewShapes {
                 let sample = root.children.first(where: { $0.name == shape.rawValue })
@@ -961,13 +978,25 @@ final class AppModel {
     // MARK: - Scene object management
 
     /// Both platforms share one selected material and its LUTs across four samples.
-    func syncSceneObjects() {
-        guard let root = sceneRoot else { return }
+    @discardableResult
+    func syncSceneObjects() -> Bool {
+        // A scene created later performs its own initial synchronization.
+        guard let root = sceneRoot else { return true }
         guard let material = material(for: selectedEffect) else {
-            root.children.removeAll()
-            return
+            // Keep mesh instances and paused orientations through a cold switch.
+            // Hide the previous effect while the new material is being prepared.
+            for child in root.children { child.isEnabled = false }
+            synchronizedRevision = -1
+            return false
         }
         let shapes = previewShapes
+        // AR status, drawer and camera updates also refresh the representable.
+        // Only a changed material/selection or a new scene needs component writes.
+        if synchronizedRoot === root, synchronizedEffect == selectedEffect,
+           synchronizedRevision == materialRevision, root.children.count == shapes.count,
+           shapes.allSatisfy({ shape in root.children.contains { $0.name == shape.rawValue } }) {
+            return true
+        }
         for child in Array(root.children) where !shapes.contains(where: { $0.rawValue == child.name }) {
             child.removeFromParent()
         }
@@ -975,19 +1004,30 @@ final class AppModel {
             for shape in shapes {
                 if let current = root.children.first(where: { $0.name == shape.rawValue }) {
                     assign(material, to: current)
+                    current.isEnabled = true
                 } else {
                     let object = try meshes.makeEntity(for: shape, material: material)
                     object.position = PreviewLayout.position(for: shape)
                     root.addChild(object)
                 }
             }
-        } catch { report(error: "模型加载失败：\(error.localizedDescription)") }
+            synchronizedRoot = root
+            synchronizedEffect = selectedEffect
+            synchronizedRevision = materialRevision
+            return true
+        } catch {
+            report(error: "模型加载失败：\(error.localizedDescription)")
+            return false
+        }
     }
 
     private func assign(_ material: ShaderGraphMaterial, to entity: Entity) {
         guard var component = entity.components[ModelComponent.self] else { return }
         component.materials = [material]
         entity.components[ModelComponent.self] = component
+        #if DEBUG
+        sceneMaterialAssignments += 1
+        #endif
     }
 
     // MARK: - Hot updates
@@ -1241,27 +1281,31 @@ final class AppModel {
         // Replacement happens within each material's substrate/absorption layer.
         // Nil or amount=0 restores the original optics, including the intensity base.
         let color = previewBaseColor?.materialColor ?? PreviewColor.originalMaterialColor
-        setParam(&material, "BaseColor", .color(color))
-        setParam(&material, "BaseAmount", .float(previewBaseColor == nil ? 0 : previewBaseAmount))
+        var changed = setParam(&material, "BaseColor", .color(color))
+        changed = setParam(&material, "BaseAmount", .float(previewBaseColor == nil ? 0 : previewBaseAmount)) || changed
         if effect == .absorbingGlass {
-            setParam(&material, "BaseAbsorption", .color(previewBaseColor?.absorptionColor ?? PreviewColor.white.absorptionColor))
+            changed = setParam(&material, "BaseAbsorption", .color(previewBaseColor?.absorptionColor ?? PreviewColor.white.absorptionColor)) || changed
         }
+        guard changed else { return }
         store(material, for: effect)
         materialRevision += 1
     }
 
-    private func setParam(_ material: inout ShaderGraphMaterial, _ name: String, _ value: MaterialParameters.Value) {
+    @discardableResult
+    private func setParam(_ material: inout ShaderGraphMaterial, _ name: String, _ value: MaterialParameters.Value) -> Bool {
         do {
             let handle = parameterHandles[name] ?? ShaderGraphMaterial.parameterHandle(name: name)
             parameterHandles[name] = handle
-            guard material.getParameter(handle: handle) != value else { return }
+            guard material.getParameter(handle: handle) != value else { return false }
             try material.setParameter(handle: handle, value: value)
+            return true
         } catch {
             // A typo'd parameter name must be visible, not silently ignored.
             let message = "setParameter(\(name)): \(error.localizedDescription)"
             parameterErrors.append(message)
             statusMessage = message
             print("RealityOpticsShaderLab: \(message)")
+            return false
         }
     }
 }
