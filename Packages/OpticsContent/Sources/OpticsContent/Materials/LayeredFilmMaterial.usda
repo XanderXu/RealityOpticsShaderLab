@@ -256,25 +256,16 @@ def Xform "Root"
         def Shader "GainMul"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/DisplayChannel.outputs:out>
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateReplaced.outputs:out>
             float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:Gain>
-            color3f outputs:out
-        }
-
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LayeredFilmMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:BaseAmount>
             color3f outputs:out
         }
 
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/LayeredFilmMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/LayeredFilmMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/LayeredFilmMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -302,6 +293,160 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstratePositive"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/DisplayChannel.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralChannels"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/LayeredFilmMaterial/SubstratePositive.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "SubstrateNeutralMinRG"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMin"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMinRG.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMaxRG"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMaxRG.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateChroma"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMin.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateSafeMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2 = 0.0001
+            float outputs:out
+        }
+
+        def Shader "SubstrateSaturation"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateChroma.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateSafeMax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateColoredMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/SubstrateSaturation.outputs:out>
+            float inputs:low = 0.04
+            float inputs:high = 0.4
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMask"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateColoredMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateDarkBody"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMask.outputs:out>
+            float inputs:in2 = 0.35
+            float outputs:out
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMin.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateDarkBody.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateTintedBody"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateBodyLevel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralRGB"
+        {
+            uniform token info:id = "ND_convert_float_color3"
+            float inputs:in.connect = </Root/LayeredFilmMaterial/SubstrateNeutralMin.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyDelta"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateTintedBody.outputs:out>
+            color3f inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateNeutralRGB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateWeightedDelta"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/SubstrateBodyDelta.outputs:out>
+            float inputs:in2.connect = </Root/LayeredFilmMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateReplaced"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/LayeredFilmMaterial/DisplayChannel.outputs:out>
+            color3f inputs:in2.connect = </Root/LayeredFilmMaterial/SubstrateWeightedDelta.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/LayeredFilmMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LayeredFilmMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

@@ -9,6 +9,7 @@ def Xform "Root"
         float inputs:Refraction = 1.5
         float inputs:Gain = 1.2
         float inputs:Intensity = 1
+        color3f inputs:BaseAbsorption = (0., 0., 0.)
         color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
         float inputs:BaseAmount = 0
         asset inputs:Environment
@@ -282,7 +283,7 @@ def Xform "Root"
         def Shader "NegativeOpticalDepth"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/AbsorptionCoefficients.outputs:out>
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorption.outputs:out>
             float inputs:in2.connect = </Root/AbsorbingGlassMaterial/NegativePath.outputs:out>
             color3f outputs:out
         }
@@ -725,20 +726,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -766,6 +758,72 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstrateAbsorptionChannels"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/AbsorbingGlassMaterial/AbsorptionCoefficients.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "SubstrateAbsorptionMinRG"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionChannels.outputs:outr>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateAbsorptionMin"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionMinRG.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateAbsorptionNeutral"
+        {
+            uniform token info:id = "ND_convert_float_color3"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionMin.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateChromaticAbsorption"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/AbsorptionCoefficients.outputs:out>
+            color3f inputs:in2.connect = </Root/AbsorbingGlassMaterial/SubstrateAbsorptionNeutral.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateChosenAbsorption"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/SubstrateChromaticAbsorption.outputs:out>
+            color3f inputs:in2.connect = </Root/AbsorbingGlassMaterial.inputs:BaseAbsorption>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateAbsorption"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial/AbsorptionCoefficients.outputs:out>
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial/SubstrateChosenAbsorption.outputs:out>
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

@@ -155,25 +155,32 @@ struct MobileOpticsSceneView: UIViewRepresentable {
         private func fitCamera() {
             guard !ar, let view, view.bounds.height > 0 else { return }
             let aspect = Float(view.bounds.width / view.bounds.height)
-            let tangent = tan(Float.pi * 42 / 360)
-            // Four individual rotation envelopes, projected into camera axes.
-            let horizontal: Float = wideLayout ? 0.48 : 0.17
-            let vertical: Float = wideLayout ? 0 : 0.15
-            let x = horizontal * abs(cos(orbit.x)) + 0.17
-            let y = horizontal * abs(sin(orbit.x) * sin(orbit.y)) + vertical * abs(cos(orbit.y)) + 0.17
-            let z = horizontal * abs(sin(orbit.x) * cos(orbit.y)) + vertical * abs(sin(orbit.y)) + 0.17
-            let distance = (max(x / (tangent * max(aspect, 0.1)), y / tangent) + z) * 1.04 / zoom
             let direction = SIMD3<Float>(sin(orbit.x) * cos(orbit.y), sin(orbit.y), cos(orbit.x) * cos(orbit.y))
+            let right = SIMD3<Float>(cos(orbit.x), 0, -sin(orbit.x))
+            let up = simd_cross(direction, right)
+            let tangentY = tan(Float.pi * 42 / 360)
+            let tangentX = tangentY * max(aspect, 0.1)
+            // Fit each rotation sphere against the perspective frustum planes.
+            // Unlike the old enclosing cube, this doesn't reserve empty corners
+            // and excess depth. Refit only on resize, orbit, zoom or mode change.
+            let inverseSinX = sqrt(1 + 1 / (tangentX * tangentX))
+            let inverseSinY = sqrt(1 + 1 / (tangentY * tangentY))
+            var fitted: Float = 0
+            for shape in PreviewShape.allCases {
+                let center = PreviewLayout.position(for: shape, wide: wideLayout)
+                let horizontal = abs(simd_dot(center, right)) / tangentX + shape.rotationRadius * inverseSinX
+                let vertical = abs(simd_dot(center, up)) / tangentY + shape.rotationRadius * inverseSinY
+                fitted = max(fitted, simd_dot(center, direction) + max(horizontal, vertical))
+            }
+            let distance = fitted * 1.02 / zoom
             camera.look(at: .zero, from: direction * distance, relativeTo: nil)
         }
 
         private func layoutSamples() {
             wideLayout = !ar && (view?.bounds.width ?? 0) > (view?.bounds.height ?? 1) * 1.8
-            for (index, shape) in PreviewShape.allCases.enumerated() {
+            for shape in PreviewShape.allCases {
                 guard let sample = root.children.first(where: { $0.name == shape.rawValue }) else { continue }
-                sample.position = wideLayout
-                    ? SIMD3((Float(index) - 1.5) * 0.32, 0, 0)
-                    : SIMD3(index % 2 == 0 ? -0.17 : 0.17, index < 2 ? 0.15 : -0.15, 0)
+                sample.position = PreviewLayout.position(for: shape, wide: wideLayout)
             }
         }
 

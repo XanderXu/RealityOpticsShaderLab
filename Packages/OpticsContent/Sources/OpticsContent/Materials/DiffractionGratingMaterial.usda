@@ -212,7 +212,7 @@ def Xform "Root"
         def Shader "Weighted"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/GratingImage.outputs:out>
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateReplaced.outputs:out>
             float inputs:in2.connect = </Root/DiffractionGratingMaterial/Illumination.outputs:out>
             color3f outputs:out
         }
@@ -227,20 +227,12 @@ def Xform "Root"
 
         # Display comparison of a colored base and the optical signal, in linear light.
         # BaseAmount = 0 preserves the original effect; 1 isolates the base color.
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/DiffractionGratingMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/DiffractionGratingMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/DiffractionGratingMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
 
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/DiffractionGratingMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/DiffractionGratingMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/DiffractionGratingMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/DiffractionGratingMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/DiffractionGratingMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -372,6 +364,160 @@ def Xform "Root"
             float inputs:opacity.connect = </Root/DiffractionGratingMaterial.inputs:Opacity>
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out
+        }
+
+        def Shader "SubstratePositive"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/GratingImage.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralChannels"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/DiffractionGratingMaterial/SubstratePositive.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "SubstrateNeutralMinRG"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMin"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMinRG.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMaxRG"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMaxRG.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateChroma"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMin.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateSafeMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2 = 0.0001
+            float outputs:out
+        }
+
+        def Shader "SubstrateSaturation"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateChroma.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateSafeMax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateColoredMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/DiffractionGratingMaterial/SubstrateSaturation.outputs:out>
+            float inputs:low = 0.04
+            float inputs:high = 0.4
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMask"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateColoredMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateDarkBody"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMask.outputs:out>
+            float inputs:in2 = 0.35
+            float outputs:out
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMin.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateDarkBody.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateTintedBody"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial.inputs:BaseColor>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateBodyLevel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralRGB"
+        {
+            uniform token info:id = "ND_convert_float_color3"
+            float inputs:in.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralMin.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyDelta"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateTintedBody.outputs:out>
+            color3f inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateNeutralRGB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateWeightedDelta"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/SubstrateBodyDelta.outputs:out>
+            float inputs:in2.connect = </Root/DiffractionGratingMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateReplaced"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/DiffractionGratingMaterial/GratingImage.outputs:out>
+            color3f inputs:in2.connect = </Root/DiffractionGratingMaterial/SubstrateWeightedDelta.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/DiffractionGratingMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/DiffractionGratingMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

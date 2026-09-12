@@ -7,21 +7,6 @@ struct PreviewControlsView: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                Text("对比模型").font(.subheadline)
-                Spacer(minLength: 8)
-                Picker("对比模型", selection: Binding(
-                    get: { model.previewGroup },
-                    set: { model.previewGroup = $0 }
-                )) {
-                    Text("第一组").tag(PreviewGroup.basic)
-                    Text("第二组").tag(PreviewGroup.instruments)
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
-                .accessibilityIdentifier("preview.group")
-            }
-
-            HStack {
                 Label("材质基础色", systemImage: "paintpalette")
                     .font(.subheadline)
                 Spacer(minLength: 8)
@@ -44,9 +29,9 @@ struct PreviewControlsView: View {
 
             if model.previewBaseColor != nil {
                 HStack(spacing: 10) {
-                    Text("底色占比").font(.caption)
+                    Text("底色替换").font(.caption)
                     Slider(value: Binding(get: { model.previewBaseAmount }, set: { model.setPreviewBaseAmount($0) }), in: 0...1) {
-                        Text("底色占比")
+                        Text("底色替换")
                     }
                     .frame(minHeight: 44)
                     .accessibilityIdentifier("preview.baseAmount")
@@ -67,7 +52,7 @@ struct PreviewControlsView: View {
                 colorButton(nil)
                 ForEach(PreviewColor.allCases) { color in colorButton(color) }
             }
-            Text("选择底色后，可调节混合占比；100% 用于检查纯底色。")
+            Text("替换材质体色或中性底色，保留光学纹理与高光；0% 恢复原始，100% 完成替换。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

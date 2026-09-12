@@ -1,0 +1,3 @@
+PASS: 837 original output probes unchanged.
+PASS: 31 graph files regenerate deterministically.
+PASS: substrate nodes add zero texture samples.

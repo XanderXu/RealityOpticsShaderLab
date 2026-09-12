@@ -24,6 +24,17 @@ enum PreviewShape: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Enclose each mesh about its origin throughout a complete rotation.
+    /// Keep these dimensions aligned with OpticsMeshes and the conical DiscMesh.
+    var rotationRadius: Float {
+        switch self {
+        case .sphere: return 0.12
+        case .plane: return sqrt(0.12 * 0.12 + 0.10 * 0.10)
+        case .ruler: return sqrt(0.135 * 0.135 + 0.0475 * 0.0475 + 0.007 * 0.007)
+        case .disc: return sqrt(0.12 * 0.12 + 0.024 * 0.024)
+        }
+    }
+
     func orientation(at time: Float) -> simd_quatf {
         // Every sample makes a full turn around its own center in about 25 seconds.
         let yaw = simd_quatf(angle: time * 0.25, axis: SIMD3(0, 1, 0))
@@ -39,14 +50,27 @@ enum PreviewShape: String, CaseIterable, Identifiable {
     }
 }
 
-enum PreviewGroup: String, CaseIterable {
-    case basic, instruments
+enum PreviewLayout {
+    static let columnSpacing: Float = 0.29
+    static let rowSpacing: Float = 0.26
 
-    var shapes: [PreviewShape] {
-        self == .basic ? [.sphere, .plane] : [.ruler, .disc]
+    static func position(for shape: PreviewShape, wide: Bool = false) -> SIMD3<Float> {
+        let index = PreviewShape.allCases.firstIndex(of: shape)!
+        return wide
+            ? SIMD3((Float(index) - 1.5) * columnSpacing, 0, 0)
+            : SIMD3(index % 2 == 0 ? -columnSpacing / 2 : columnSpacing / 2,
+                    index < 2 ? rowSpacing / 2 : -rowSpacing / 2, 0)
     }
 
-    var title: String { self == .basic ? "球体 / 平面" : "尺子 / 光盘" }
+    /// Conservative bounds of the 2×2 board, including complete sample turns.
+    static let gridSize: SIMD2<Float> = {
+        var halfSize = SIMD2<Float>.zero
+        for shape in PreviewShape.allCases {
+            let center = position(for: shape)
+            halfSize = simd_max(halfSize, SIMD2(abs(center.x), abs(center.y)) + shape.rotationRadius)
+        }
+        return halfSize * 2
+    }()
 }
 
 /// Black, white and RGB primaries have identical values in sRGB and linear sRGB.
@@ -83,6 +107,15 @@ enum PreviewColor: String, CaseIterable, Identifiable {
     var materialColor: CGColor {
         CGColor(colorSpace: Self.materialColorSpace, components: [rgb.x, rgb.y, rgb.z, 1])!
     }
+    /// Unit-path Beer–Lambert coefficients. Cache five swatches once; slider
+    /// drags and the glass graph reuse these and the existing exponential math.
+    private static let absorptionColors: [PreviewColor: CGColor] = Dictionary(uniqueKeysWithValues: allCases.map { color in
+        let rgb = color.rgb
+        let absorption = [-log(max(rgb.x, 0.002)), -log(max(rgb.y, 0.002)), -log(max(rgb.z, 0.002))]
+        return (color, CGColor(colorSpace: materialColorSpace,
+                              components: absorption.map { CGFloat($0) } + [1])!)
+    })
+    var absorptionColor: CGColor { Self.absorptionColors[self]! }
     var contrastingColor: Color {
         switch self {
         case .black, .red, .blue: return .white

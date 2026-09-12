@@ -133,7 +133,7 @@ def Xform "Root"
         def Shader "Absorption"
         {
             uniform token info:id = "ND_power_color3"
-            color3f inputs:in1.connect = </Root/AlexandriteMaterial/IlluminantColor.outputs:out>
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateReplaced.outputs:out>
             color3f inputs:in2.connect = </Root/AlexandriteMaterial/PathRGB.outputs:out>
             color3f outputs:out
         }
@@ -170,20 +170,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AlexandriteMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/AlexandriteMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/AlexandriteMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AlexandriteMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/AlexandriteMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/AlexandriteMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/AlexandriteMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/AlexandriteMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -211,6 +202,160 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstratePositive"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial/IlluminantColor.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralChannels"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/AlexandriteMaterial/SubstratePositive.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "SubstrateNeutralMinRG"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMin"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMinRG.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMaxRG"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMaxRG.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateChroma"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralMin.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateSafeMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2 = 0.0001
+            float outputs:out
+        }
+
+        def Shader "SubstrateSaturation"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateChroma.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateSafeMax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateColoredMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/AlexandriteMaterial/SubstrateSaturation.outputs:out>
+            float inputs:low = 0.04
+            float inputs:high = 0.4
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMask"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateColoredMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateDarkBody"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMask.outputs:out>
+            float inputs:in2 = 0.35
+            float outputs:out
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateNeutralMin.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateDarkBody.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateTintedBody"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial.inputs:BaseColor>
+            float inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateBodyLevel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralRGB"
+        {
+            uniform token info:id = "ND_convert_float_color3"
+            float inputs:in.connect = </Root/AlexandriteMaterial/SubstrateNeutralMin.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyDelta"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateTintedBody.outputs:out>
+            color3f inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateNeutralRGB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateWeightedDelta"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial/SubstrateBodyDelta.outputs:out>
+            float inputs:in2.connect = </Root/AlexandriteMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateReplaced"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/AlexandriteMaterial/IlluminantColor.outputs:out>
+            color3f inputs:in2.connect = </Root/AlexandriteMaterial/SubstrateWeightedDelta.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/AlexandriteMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/AlexandriteMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

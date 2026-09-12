@@ -53,8 +53,8 @@ class Graph:
   return self.node(name,'ND_image_color3','color3f',file=self.p(key),texcoord=uv,default=(0,0,0),uaddressmode='clamp',vaddressmode='clamp')
  def finish(self,color):
   gain=self.op('GainMul','multiply',color,self.p('Gain'),'color3f')
-  base=self.mix('BaseColorBlend',gain,self.p('BaseColor'),self.p('BaseAmount'))
-  intensity=self.mix('IntensityBlend',self.p('BaseColor'),base,self.p('Intensity'))
+  # base_color.apply_all inserts family-specific substrate hooks before gain.
+  intensity=self.mix('IntensityBlend',(.2140411405,)*3,gain,self.p('Intensity'))
   clamp=self.op('IntensityClamp','max',intensity,(0,0,0),'color3f')
   self.node('Unlit','ND_realitykit_unlit_surfaceshader','token',color=clamp,opacity=1.0,applyPostProcessToneMap=False)
   self.node('DefaultSurfaceShader','UsdPreviewSurface','token',diffuseColor=(1,1,1),roughness=0.75)
@@ -236,4 +236,6 @@ for e,controls in CONTROLS.items():
  s+='        ]\n'
 s+='        default: return []\n        }\n    }\n}\n'
 (ROOT/'RealityOpticsShaderLab/ExtendedEffectControls.swift').write_text(s)
+from base_color import apply_all as apply_base_colors
+apply_base_colors()
 print(f'Generated 15 graph templates and controls for {len(CONTROLS)} effects')

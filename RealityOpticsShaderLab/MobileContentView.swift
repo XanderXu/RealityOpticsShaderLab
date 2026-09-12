@@ -12,8 +12,9 @@ struct MobileContentView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 8) {
+            VStack(spacing: 4) {
                 toolbar
+                    .padding(.horizontal, 4)
                 scene.frame(height: max(150, (geometry.size.height - 55) * 0.49))
                 ZStack(alignment: .bottom) {
                     controls.opacity(showsPanel ? 0 : 1).allowsHitTesting(!showsPanel)
@@ -24,8 +25,8 @@ struct MobileContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 6)
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .environment(preview)
@@ -75,7 +76,7 @@ struct MobileContentView: View {
 
     private var scene: some View {
         OpticsSceneView()
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(alignment: .topLeading) {
                 if !preview.message.isEmpty {
                     Text(preview.message).font(.caption2).lineLimit(3)
@@ -114,9 +115,9 @@ struct MobileContentView: View {
                     }
                     if model.previewBaseColor != nil {
                         HStack(spacing: 8) {
-                            Text("占比").font(.caption)
+                            Text("替换").font(.caption)
                             Slider(value: Binding(get: { model.previewBaseAmount }, set: { model.setPreviewBaseAmount($0) }), in: 0...1)
-                                .accessibilityLabel("底色占比").accessibilityIdentifier("preview.baseAmount")
+                                .accessibilityLabel("底色替换").accessibilityIdentifier("preview.baseAmount")
                             Text(model.previewBaseAmount.formatted(.percent.precision(.fractionLength(0))))
                                 .font(.caption.monospacedDigit()).frame(width: 34)
                         }.frame(minHeight: 32)
@@ -126,6 +127,19 @@ struct MobileContentView: View {
                 if model.statusMessage != "Ready" {
                     Text(model.statusMessage).font(.caption2).foregroundStyle(.secondary)
                 }
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("效果说明", systemImage: "info.circle")
+                        .font(.caption.weight(.semibold))
+                    Text(model.selectedEffect.mechanism)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("mobile.description")
             }.padding(12)
         }
     }
@@ -224,9 +238,6 @@ struct MobileContentView: View {
                 ForEach(model.settingsFor(model.selectedEffect)) { spec in
                     ParameterSliderRow(spec: spec, compact: true)
                 }
-                DisclosureGroup("效果说明") {
-                    Text(model.selectedEffect.mechanism).font(.caption).foregroundStyle(.secondary)
-                }.font(.caption).padding(8)
             }.padding(.horizontal, 12).padding(.bottom, 12)
         }.id(model.selectedEffect)
     }

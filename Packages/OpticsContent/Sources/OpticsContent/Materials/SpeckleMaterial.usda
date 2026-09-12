@@ -118,27 +118,19 @@ def Xform "Root"
         def Shader "GainMul"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/SpeckleMaterial/Beam.outputs:out>
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/SubstrateReplaced.outputs:out>
             float inputs:in2.connect = </Root/SpeckleMaterial.inputs:Gain>
             color3f outputs:out
         }
 
         # Display comparison of a colored base and the optical signal, in linear light.
         # BaseAmount = 0 preserves the original effect; 1 isolates the base color.
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/SpeckleMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/SpeckleMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
 
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/SpeckleMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/SpeckleMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/SpeckleMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/SpeckleMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/SpeckleMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -173,6 +165,64 @@ def Xform "Root"
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out
+        }
+
+        def Shader "SubstrateBackdrop"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial.inputs:BaseColor>
+            float inputs:in2 = 0.35
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateCoverage"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/SpeckleMaterial/Sparkle.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 1.0
+            float outputs:out
+        }
+
+        def Shader "SubstrateBehind"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/SpeckleMaterial/SubstrateCoverage.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateAmount"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/SpeckleMaterial.inputs:BaseAmount>
+            float inputs:in2.connect = </Root/SpeckleMaterial/SubstrateBehind.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateBody"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/SubstrateBackdrop.outputs:out>
+            float inputs:in2.connect = </Root/SpeckleMaterial/SubstrateAmount.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateReplaced"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/SpeckleMaterial/Beam.outputs:out>
+            color3f inputs:in2.connect = </Root/SpeckleMaterial/SubstrateBody.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/SpeckleMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/SpeckleMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

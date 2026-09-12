@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ParameterPanelView: View {
     @Environment(AppModel.self) private var model
-    @State private var showsPrinciple = false
+    @State private var showsPrinciple = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -20,6 +20,7 @@ struct ParameterPanelView: View {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 8) {
                         Color.clear.frame(height: 0).id("parameters.top")
+                        principle
                         if model.selectedEffect.isImplemented {
                             ForEach(model.settingsFor(model.selectedEffect)) { spec in
                                 ParameterSliderRow(spec: spec)
@@ -29,34 +30,37 @@ struct ParameterPanelView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-
-                        DisclosureGroup("效果说明", isExpanded: $showsPrinciple) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(model.selectedEffect.title)
-                                    .font(.subheadline.weight(.semibold))
-                                Text(model.selectedEffect.subtitle)
-                                Text(model.selectedEffect.mechanism)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 10)
-                        }
-                        .font(.subheadline.weight(.medium))
-                        .padding(14)
-                        .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 16))
                     }
                     .padding(.horizontal, 14)
                     .padding(.bottom, 18)
                 }
                 .onChange(of: model.selectedEffect) { _, _ in
-                    showsPrinciple = false
+                    showsPrinciple = true
                     proxy.scrollTo("parameters.top", anchor: .top)
                 }
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .modifier(LabPanel())
+    }
+
+    private var principle: some View {
+        DisclosureGroup("效果说明", isExpanded: $showsPrinciple) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(model.selectedEffect.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(model.selectedEffect.subtitle)
+                Text(model.selectedEffect.mechanism)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 10)
+        }
+        .font(.subheadline.weight(.medium))
+        .padding(14)
+        .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityIdentifier("parameters.description")
     }
 }
 

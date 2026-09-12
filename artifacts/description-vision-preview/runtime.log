@@ -1,0 +1,9 @@
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.030388292 seconds
+OPTICS_PERF FIRST_READY thinFilm: 1.362306792 seconds
+OPTICS_PERF SELECT thinFilm: 0.750813375 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_AUDIT DEFAULT thinFilm 7 parameters
+OPTICS_PERF LUT GPU film(ior: 1.2): 0.022507584 seconds
+OPTICS_AUDIT MIN thinFilm 7 parameters
+OPTICS_PERF LUT GPU film(ior: 1.45): 0.003646875 seconds
+OPTICS_AUDIT MAX thinFilm 7 parameters
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

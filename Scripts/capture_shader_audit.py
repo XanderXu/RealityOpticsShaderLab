@@ -20,10 +20,13 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("artifacts/shader-audit"))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--performance", action="store_true", help="Check lazy caches and instances instead of screenshots")
-    mode.add_argument("--preview", action="store_true", help="Check paired shapes, rear faces and base colors; capture seven comparison views")
+    mode.add_argument("--preview", action="store_true", help="Check four shapes, rear faces and base colors; capture seven comparison views")
+    mode.add_argument("--base-color", action="store_true", help="Check all base-color bindings and capture 24 substrate comparisons")
     mode.add_argument("--mobile", action="store_true", help="Check iOS rotation, four samples, drawers and AR availability")
     mode.add_argument("--spatial", action="store_true", help="Audit seven view-dependent effects with oblique/rear/light comparisons")
     args = parser.parse_args()
+    if args.base_color:
+        args.preview = True
     if (args.performance or args.preview) and args.effect:
         parser.error("--performance/--preview starts with thinFilm; omit --effect")
     if args.spatial and args.effect and args.effect not in ["gemFire", "absorbingGlass", "lenticular", "moire", "parallaxNebula", "rainbow", "atmosphere"]:
@@ -33,6 +36,8 @@ def main():
     env = dict(os.environ)
     flag = "SIMCTL_CHILD_OPTICS_PREVIEW_AUDIT" if args.preview else ("SIMCTL_CHILD_OPTICS_PERF_AUDIT" if args.performance else "SIMCTL_CHILD_OPTICS_AUDIT")
     env[flag] = "1"
+    if args.base_color:
+        env["SIMCTL_CHILD_OPTICS_BASE_COLOR_AUDIT"] = "1"
     if args.mobile:
         flag = "SIMCTL_CHILD_OPTICS_MOBILE_AUDIT"
         env.pop("SIMCTL_CHILD_OPTICS_AUDIT", None)
@@ -77,6 +82,7 @@ def main():
         if args.effect is None or args.effect == "pleochroism": expected += 1
     if args.spatial: expected = (3 + (args.effect in ["rainbow", "atmosphere"])) if args.effect else 23
     if args.mobile: expected = 7
+    if args.base_color: expected = 24
     if not passed or len(captured) != expected:
         raise SystemExit(f"Incomplete audit: passed={passed}, screenshots={len(captured)}; inspect runtime.log")
     print(f"PASS: {expected} screenshots and runtime.log saved to {args.output}")

@@ -292,6 +292,69 @@ def extended_controls(graphs):
     return count
 
 
+def substrate_regressions(graphs):
+    """Behavioral probes: body replacement must not erase optical information."""
+    colors = [(0.,)*3, (1.,)*3, (.18,)*3, (1.,0.,0.), (0.,1.,0.), (0.,0.,1.)]
+    for graph in graphs.values():
+        assert 'BaseColorBlend' not in graph.nodes, f'{graph.name}: final-color overlay remains'
+        assert all(kind != 'ND_image_color3' for name,(kind,_) in graph.nodes.items() if name.startswith('Substrate'))
+        for intensity in [0, 1, 2]:
+            original = graph.evaluate('Unlit', {'Intensity':intensity})
+            for base in colors:
+                params = {'BaseColor':base, 'BaseAmount':0, 'Intensity':intensity}
+                restored = graph.evaluate('Unlit', params)
+                assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(original,restored)), f'{graph.name}: 0% did not restore original'
+                for amount in [.35, 1]:
+                    params['BaseAmount'] = amount
+                    params['BaseAbsorption'] = tuple(-math.log(max(c,.002)) for c in base)
+                    for view in [(0.,0.,1.),(1.,0.,0.),(0.,0.,-1.)]:
+                        assert min(graph.evaluate('Unlit',params,{'view':view})) >= 0
+        if 'SubstrateReplaced' in graph.nodes and 'SubstrateNeutralChannels' in graph.nodes:
+            # Dim saturated fringes must survive even on the white substrate.
+            source, _, _ = graph.resolve(graph.nodes['SubstratePositive'][1]['inputs:in1'][2])
+            for fringe in [(0.,0.,.03),(.01,.04,.2),(.9,.2,.01)]:
+                actual = graph.evaluate('SubstrateReplaced', {'BaseColor':(1.,)*3,'BaseAmount':1}, {source:fringe})
+                assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(actual,fringe)), f'{graph.name}: white washed out a colored fringe'
+            if graph.name != 'GemFireMaterial':
+                red = graph.evaluate('SubstrateReplaced', {'BaseColor':(1.,0.,0.),'BaseAmount':1}, {source:(.5,)*3})
+                black = graph.evaluate('SubstrateReplaced', {'BaseColor':(0.,)*3,'BaseAmount':1}, {source:(.5,)*3})
+                assert red == (.5,0.,0.) and black == (0.,)*3, f'{graph.name}: white carrier not replaced'
+
+    # Verify actual compositing, not just isolated masks: preserve the complete
+    # optical contribution at 100% replacement, including white highlights.
+    for name, optical, body in [('Chatoyancy','BandColor','Body'),('Moonstone','CloudGlow','Body'),
+                                ('Labradorite','FlashColor','Body'),('Sunstone','SparkleColor','Body'),
+                                ('Retroreflective','ReturnColor','Body'),('Atmosphere','ScatteredLight','PlanetSurface')]:
+        g = graphs[name+'Material']
+        for base in colors:
+            params = {'BaseAmount':1,'BaseColor':base,'Gain':.5}
+            off = g.evaluate('Unlit',params,{optical:(0.,)*3})
+            on = g.evaluate('Unlit',params,{optical:(.2,.4,.6)})
+            assert all(math.isclose(b-a,c,abs_tol=1e-7) for a,b,c in zip(off,on,(.1,.2,.3))), f'{name}: optical highlight faded with base'
+    pearl=graphs['PearlMaterial']
+    for base in colors:
+        params={'BaseAmount':1,'BaseColor':base,'Gain':1}
+        off=pearl.evaluate('Unlit',params,{'HotTerm':(0.,)*3})
+        on=pearl.evaluate('Unlit',params,{'HotTerm':(.2,)*3})
+        assert all(math.isclose(b-a,.2,abs_tol=1e-7) for a,b in zip(off,on)), 'Pearl highlight was recolored'
+    glass=graphs['AbsorbingGlassMaterial']
+    for base in colors:
+        params={'BaseAmount':1,'BaseColor':base,'BaseAbsorption':tuple(-math.log(max(c,.002)) for c in base)}
+        clear=glass.evaluate('Transmission',dict(params,Thickness=0))
+        thin=glass.evaluate('Transmission',dict(params,Thickness=.2))
+        thick=glass.evaluate('Transmission',dict(params,Thickness=2))
+        assert clear==(1.,)*3 and all(a>=b for a,b in zip(thin,thick)), 'Glass base broke path-dependent absorption'
+        reflection=glass.evaluate('Glass',params,{'Fresnel':1,'SurfaceReflection':(.3,.5,.7)})
+        assert reflection==(.3,.5,.7), 'Glass tint affected surface reflection'
+    # Changing the far backing must still pass through all cloud layers.
+    nebula=graphs['ParallaxNebulaMaterial']
+    params={'BaseAmount':1,'Gain':1}
+    transmission=math.prod(nebula.evaluate(f'Layer{i}Transmission',params) for i in range(4))
+    black=nebula.evaluate('Unlit',dict(params,BaseColor=(0.,)*3))
+    white=nebula.evaluate('Unlit',dict(params,BaseColor=(1.,)*3))
+    assert all(math.isclose(b-a,.2*transmission,abs_tol=1e-7) for a,b in zip(black,white)), 'Nebula backing bypassed depth occlusion'
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stdlib',type=Path)
@@ -305,27 +368,13 @@ def main():
     total=0
     for graph in graphs.values():
         total+=graph.validate(definitions)
-        # Color comparison must retain the optical signal at 0%, reach the chosen
-        # base at 100%, and keep Intensity=0 useful as a base-only inspection.
-        base_blend = graph.nodes['BaseColorBlend'][1]
-        optical_node, _, _ = graph.resolve(base_blend['inputs:bg'][2])
-        optical = graph.evaluate(optical_node)
-        neutral = (0.2140411405,) * 3
-        original = graph.evaluate('Unlit', {'BaseAmount': 0, 'BaseColor': neutral})
-        assert all(math.isclose(a, max(b, 0), abs_tol=1e-7) for a,b in zip(original,optical)), f'{graph.name}: original color changed'
-        for base in [(0.,)*3, (1.,)*3, (.18,)*3, (1.,0.,0.), (0.,1.,0.), (0.,0.,1.), (0.,1.,1.), (1.,0.,1.), (1.,1.,0.)]:
-            for strength in [0, 1, 2]:
-                actual = graph.evaluate('Unlit', {'BaseColor':base, 'BaseAmount':1, 'Intensity':strength})
-                assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(actual,base)), f'{graph.name}: base endpoint failed'
-            actual = graph.evaluate('Unlit', {'BaseColor':base, 'BaseAmount':0.35, 'Intensity':1})
-            expected = tuple(max(0,a*0.65+b*0.35) for a,b in zip(optical,base))
-            assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(actual,expected)), f'{graph.name}: base blend failed'
         for uv in [(0.,0.),(.5,.5),(1.,1.)]:
             for view in [(0.,0.,1.),(0.,0.,-1.),(0.,1.,0.),(1.,0.,0.)]:
                 for intensity in [0,1,2]:
                     color=graph.evaluate('Unlit',{'Intensity':intensity},{'uv':uv,'view':view})
                     assert min(color)>=0, f'{graph.name}: negative radiance'
         print(f'PASS {graph.name}: {len(graph.nodes)} nodes')
+    substrate_regressions(graphs)
     speckle=graphs['SpeckleMaterial']
     assert all(kind != 'ND_texcoord_vector2' for kind, _ in speckle.nodes.values())
     assert speckle.nodes['Position'][1]['inputs:space'][2] == 'object'

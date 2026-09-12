@@ -1,0 +1,18 @@
+2026-09-12 13:14:23.041 simctl[28003:20992707] Metal API Validation Enabled
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.023282875 seconds
+OPTICS_PERF FIRST_READY thinFilm: 1.679488042 seconds
+OPTICS_PERF SELECT thinFilm: 0.905167917 seconds; templates=1, textures=1, textureBytes=524288
+OPTICS_PERF SELECT thinFilm: 0.908520167 seconds; templates=1, textures=1, textureBytes=524288
+objc[28010]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x154988398) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x155aa4310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+OPTICS_MOBILE_AUDIT rotation: advances / pauses / resumes
+OPTICS_MOBILE_AUDIT CAPTURE controls
+OPTICS_MOBILE_AUDIT CAPTURE library
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.views): 0.010739917 seconds
+OPTICS_PERF SELECT lenticular: 0.186904208 seconds; templates=2, textures=2, textureBytes=2621440
+OPTICS_PERF SELECT lenticular: 0.197904666 seconds; templates=2, textures=2, textureBytes=2621440
+OPTICS_MOBILE_AUDIT CAPTURE library-selection
+OPTICS_MOBILE_AUDIT CAPTURE parameters
+OPTICS_MOBILE_AUDIT CAPTURE base-color
+OPTICS_MOBILE_AUDIT CAPTURE ar-availability
+OPTICS_MOBILE_AUDIT CAPTURE landscape
+OPTICS_MOBILE_AUDIT PASS: rotation, four samples, persistent drawer selection, base color, AR fallback

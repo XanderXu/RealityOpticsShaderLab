@@ -234,7 +234,7 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     var mechanism: String {
         switch self {
         case .gemFire: return "以固定环境图、三波段折射和一次内部反射近似宝石火彩；切面由程序法线模拟，不追踪真实几何内部光路或现实背景"
-        case .absorbingGlass: return "有限平板光程与 RGB Beer–Lambert 吸收，叠加 Schlick 表面反射；背景为预制环境，非现实透视画面的折射，厚度由参数指定"
+        case .absorbingGlass: return "有限平板光程与 RGB Beer–Lambert 吸收，叠加 Fresnel 表面反射；背景为预制环境，非现实透视画面的折射，厚度由参数指定"
         case .lenticular: return "物体空间观察斜率选择四视图图集；柱镜条带扰动视图索引。图集由 Compute 一次生成，属于柱镜选图近似"
         case .moire: return "计算两层光栅的相位差，保留低频拍频并映射到三色通道；以解析低通代替易闪烁的亚像素混叠，层距为零时视差消失"
         case .parallaxNebula: return "四层 Compute 生成的纹理按固定深度偏移并从后向前合成；使用有界视差和亮度遮挡，无屏幕后期，也不是完整体积散射"

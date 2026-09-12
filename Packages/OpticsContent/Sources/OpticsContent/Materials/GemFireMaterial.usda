@@ -1664,25 +1664,16 @@ def Xform "Root"
         def Shader "GainMul"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1.connect = </Root/GemFireMaterial/Fire.outputs:out>
+            color3f inputs:in1.connect = </Root/GemFireMaterial/SubstrateReplaced.outputs:out>
             float inputs:in2.connect = </Root/GemFireMaterial.inputs:Gain>
-            color3f outputs:out
-        }
-
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/GemFireMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/GemFireMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/GemFireMaterial.inputs:BaseAmount>
             color3f outputs:out
         }
 
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/GemFireMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/GemFireMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/GemFireMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/GemFireMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/GemFireMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -1710,6 +1701,185 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstratePositive"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Fire.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralChannels"
+        {
+            uniform token info:id = "ND_separate3_color3"
+            color3f inputs:in.connect = </Root/GemFireMaterial/SubstratePositive.outputs:out>
+            float outputs:outr
+            float outputs:outg
+            float outputs:outb
+        }
+
+        def Shader "SubstrateNeutralMinRG"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMin"
+        {
+            uniform token info:id = "ND_min_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMinRG.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMaxRG"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outr>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outg>
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMaxRG.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralChannels.outputs:outb>
+            float outputs:out
+        }
+
+        def Shader "SubstrateChroma"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralMin.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateSafeMax"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:in2 = 0.0001
+            float outputs:out
+        }
+
+        def Shader "SubstrateSaturation"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateChroma.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateSafeMax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateColoredMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/GemFireMaterial/SubstrateSaturation.outputs:out>
+            float inputs:low = 0.04
+            float inputs:high = 0.4
+            float outputs:out
+        }
+
+        def Shader "SubstrateNeutralMask"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateColoredMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateDarkBody"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMask.outputs:out>
+            float inputs:in2 = 0.35
+            float outputs:out
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/SubstrateNeutralMin.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateDarkBody.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateTintedBody"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/GemFireMaterial.inputs:BaseColor>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateBodyLevel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateNeutralRGB"
+        {
+            uniform token info:id = "ND_convert_float_color3"
+            float inputs:in.connect = </Root/GemFireMaterial/SubstrateNeutralMin.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyDelta"
+        {
+            uniform token info:id = "ND_subtract_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/SubstrateTintedBody.outputs:out>
+            color3f inputs:in2.connect = </Root/GemFireMaterial/SubstrateNeutralRGB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateHighlightMask"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/GemFireMaterial/SubstrateNeutralMax.outputs:out>
+            float inputs:low = 0.4
+            float inputs:high = 1.4
+            float outputs:out
+        }
+
+        def Shader "SubstrateBodyMask"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateHighlightMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateAmount"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial.inputs:BaseAmount>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateBodyMask.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SubstrateWeightedDelta"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/SubstrateBodyDelta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/SubstrateAmount.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateReplaced"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Fire.outputs:out>
+            color3f inputs:in2.connect = </Root/GemFireMaterial/SubstrateWeightedDelta.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/GemFireMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

@@ -31,21 +31,14 @@ struct SettingSpec: Identifiable {
 final class AppModel {
 
     var selectedEffect: OpticsEffect = .thinFilm
-    var previewGroup: PreviewGroup = .basic
-    var previewShapes: [PreviewShape] {
-        #if os(iOS)
-        return PreviewShape.allCases
-        #else
-        return previewGroup.shapes
-        #endif
-    }
+    var previewShapes: [PreviewShape] { PreviewShape.allCases }
     var previewBaseColor: PreviewColor? {
         didSet {
             guard previewBaseColor != oldValue else { return }
             for effect in OpticsEffect.allCases { pushPreviewAppearance(for: effect) }
         }
     }
-    private(set) var previewBaseAmount: Float = 0.35
+    private(set) var previewBaseAmount: Float = 1
 
     func setPreviewBaseAmount(_ value: Float) {
         guard value.isFinite else { return }
@@ -842,13 +835,11 @@ final class AppModel {
         let savedEffect = selectedEffect
         let savedColor = previewBaseColor
         let savedAmount = previewBaseAmount
-        let savedGroup = previewGroup
         let savedAnimation = isAnimating
         defer {
             selectedEffect = savedEffect
             previewBaseColor = savedColor
             setPreviewBaseAmount(savedAmount)
-            previewGroup = savedGroup
             isAnimating = savedAnimation
             syncSceneObjects()
             fflush(stdout)
@@ -858,7 +849,7 @@ final class AppModel {
         for _ in 0..<100 where sceneRoot == nil { try await Task.sleep(for: .milliseconds(20)) }
         guard let root = sceneRoot else { throw NSError(domain: "OpticsPreview", code: 2) }
 
-        func checkPair() throws {
+        func checkSamples() throws {
             syncSceneObjects()
             syncSceneObjects() // Repeated updates must not add duplicate samples.
             try check(root.children.count == previewShapes.count, "Incorrect number of live samples")
@@ -874,6 +865,14 @@ final class AppModel {
                 }
                 let expected = (previewBaseColor?.materialColor ?? PreviewColor.originalMaterialColor).components!
                 try check(components.count == expected.count && zip(components, expected).allSatisfy { abs($0 - $1) < 0.000001 }, "Stale sample base color")
+                if selectedEffect == .absorbingGlass {
+                    guard case .color(let absorption) = material?.getParameter(name: "BaseAbsorption"),
+                          let actual = absorption.converted(to: PreviewColor.materialColorSpace, intent: .relativeColorimetric, options: nil)?.components else {
+                        throw NSError(domain: "OpticsPreview", code: 4)
+                    }
+                    let target = (previewBaseColor?.absorptionColor ?? PreviewColor.white.absorptionColor).components!
+                    try check(actual.count == target.count && zip(actual, target).allSatisfy { abs($0 - $1) < 0.000001 }, "Stale glass absorption")
+                }
                 try check(material?.getParameter(name: "Intensity") == .float(intensity(for: selectedEffect)), "Samples differ in optical intensity")
             }
         }
@@ -881,38 +880,32 @@ final class AppModel {
         // These controls must work during a cold start without warming other effects.
         let coldLoads = resources.templateLoadCount
         let coldBuilds = resources.textureBuildCount
-        for group in PreviewGroup.allCases {
-            previewGroup = group
-            for color in PreviewColor.allCases {
-                previewBaseColor = color
-                try checkPair()
-            }
+        for color in PreviewColor.allCases {
+            previewBaseColor = color
+            try checkSamples()
         }
         try check(resources.templateLoadCount == coldLoads && resources.textureBuildCount == coldBuilds, "Preview changes rebuilt GPU resources")
 
-        // Every template (including shared film instances) binds to both shape groups.
+        // Every template (including shared film instances) binds to all four shapes.
         for effect in OpticsEffect.allCases {
             selectedEffect = effect
             try await ensureLoaded(effect)
-            for group in PreviewGroup.allCases {
-                previewGroup = group
-                for color in PreviewColor.allCases {
-                    previewBaseColor = color
-                    try checkPair()
-                    for amount: Float in [0, 0.35, 1] {
-                        setPreviewBaseAmount(amount)
-                        try checkPair()
-                    }
+            for color in PreviewColor.allCases {
+                previewBaseColor = color
+                try checkSamples()
+                for amount: Float in [0, 0.35, 1] {
+                    setPreviewBaseAmount(amount)
+                    try checkSamples()
                 }
             }
         }
         try check(parameterErrors.isEmpty, "Preview shader binding failed")
-        try check(resources.templateCount == Set(OpticsEffect.allCases.map(\.templateName)).count, "Paired samples duplicated material templates")
-        print("OPTICS_PREVIEW_AUDIT bindings: \(OpticsEffect.allCases.count) effects / 2 groups / \(PreviewColor.allCases.count) colors / 3 amounts; \(previewShapes.count) live samples; no color/group resource builds")
+        try check(resources.templateCount == Set(OpticsEffect.allCases.map(\.templateName)).count, "Samples duplicated material templates")
+        print("OPTICS_PREVIEW_AUDIT bindings: \(OpticsEffect.allCases.count) effects / \(PreviewColor.allCases.count) colors / 3 amounts; \(previewShapes.count) live samples; no color resource builds")
 
         func capture(_ name: String, rotationTime: Float = 0) async throws {
             await prepareSelectedEffect()
-            try checkPair()
+            try checkSamples()
             try await Task.sleep(for: .seconds(1))
             // Animation is paused; explicitly inspect both sides of the thin samples.
             for sample in root.children {
@@ -924,8 +917,26 @@ final class AppModel {
             fflush(stdout)
             try await Task.sleep(for: .seconds(3))
         }
+        if ProcessInfo.processInfo.environment["OPTICS_BASE_COLOR_AUDIT"] == "1" {
+            let comparisons: [(OpticsEffect, PreviewColor, PreviewColor)] = [
+                (.thinFilm, .white, .red), (.grating, .white, .blue),
+                (.pearl, .black, .blue), (.catEye, .black, .red),
+                (.absorbingGlass, .white, .red), (.lcd, .white, .blue),
+                (.parallaxNebula, .white, .red), (.gemFire, .white, .red)
+            ]
+            for (effect, first, second) in comparisons {
+                selectedEffect = effect
+                for color: PreviewColor? in [nil, first, second] {
+                    previewBaseColor = color
+                    setPreviewBaseAmount(1)
+                    try await capture("\(effect.rawValue)-\(color?.rawValue ?? "original")")
+                }
+            }
+            print("OPTICS_PREVIEW_AUDIT PASS: substrate replacement, glass absorption, original restore, shared resources")
+            fflush(stdout)
+            return
+        }
         selectedEffect = .thinFilm
-        previewGroup = .basic
         previewBaseColor = nil
         try await capture("basic-original")
         try await capture("basic-rear", rotationTime: 4 * .pi)
@@ -934,23 +945,22 @@ final class AppModel {
         try await capture("basic-red")
         previewBaseColor = .white
         setPreviewBaseAmount(1)
-        try await capture("basic-white-only")
+        try await capture("basic-white-replaced")
         selectedEffect = .grating
-        previewGroup = .instruments
         previewBaseColor = nil
         try await capture("instruments-original")
         try await capture("instruments-rear", rotationTime: 4 * .pi)
         previewBaseColor = .white
         setPreviewBaseAmount(0.35)
         try await capture("instruments-white")
-        print("OPTICS_PREVIEW_AUDIT PASS: paired geometry, all material base colors, original restore, shared resources")
+        print("OPTICS_PREVIEW_AUDIT PASS: four geometries, all material base colors, original restore, shared resources")
         fflush(stdout)
     }
     #endif
 
     // MARK: - Scene object management
 
-    /// Samples share the selected material and its LUTs: four on iOS, two on visionOS.
+    /// Both platforms share one selected material and its LUTs across four samples.
     func syncSceneObjects() {
         guard let root = sceneRoot else { return }
         guard let material = material(for: selectedEffect) else {
@@ -962,16 +972,12 @@ final class AppModel {
             child.removeFromParent()
         }
         do {
-            for (index, shape) in shapes.enumerated() {
+            for shape in shapes {
                 if let current = root.children.first(where: { $0.name == shape.rawValue }) {
                     assign(material, to: current)
                 } else {
                     let object = try meshes.makeEntity(for: shape, material: material)
-                    #if os(iOS)
-                    object.position = SIMD3(index % 2 == 0 ? -0.17 : 0.17, index < 2 ? 0.15 : -0.15, 0)
-                    #else
-                    object.position = SIMD3(index == 0 ? -0.17 : 0.17, 0, 0)
-                    #endif
+                    object.position = PreviewLayout.position(for: shape)
                     root.addChild(object)
                 }
             }
@@ -1232,10 +1238,14 @@ final class AppModel {
 
     private func pushPreviewAppearance(for effect: OpticsEffect) {
         guard var material = material(for: effect) else { return }
-        // A nil selection restores the exact original neutral-gray intensity base.
+        // Replacement happens within each material's substrate/absorption layer.
+        // Nil or amount=0 restores the original optics, including the intensity base.
         let color = previewBaseColor?.materialColor ?? PreviewColor.originalMaterialColor
         setParam(&material, "BaseColor", .color(color))
         setParam(&material, "BaseAmount", .float(previewBaseColor == nil ? 0 : previewBaseAmount))
+        if effect == .absorbingGlass {
+            setParam(&material, "BaseAbsorption", .color(previewBaseColor?.absorptionColor ?? PreviewColor.white.absorptionColor))
+        }
         store(material, for: effect)
         materialRevision += 1
     }

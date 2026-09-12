@@ -23,7 +23,7 @@ struct OpticsSceneView: View {
                     model.syncSceneObjects()
                 }
 
-                // One clock keeps both material samples in sync.
+                // One clock keeps all four material samples in sync.
                 var spin: Float = 0
                 var lastObject: ObjectIdentifier?
                 _ = content.subscribe(to: SceneEvents.Update.self) { event in
@@ -48,7 +48,10 @@ struct OpticsSceneView: View {
                 let bounds = content.convert(geometry.frame(in: .local), from: .local, to: .scene)
                 // Fit the entire rotational envelope, not the current orientation.
                 // This keeps wide discs and wings clear of both inspector panels.
-                let scale = max(0.01, min(bounds.extents.x / 0.66, bounds.extents.y / 0.34) * 0.84)
+                let size = PreviewLayout.gridSize
+                // Leave room for the perspective expansion of geometry in front
+                // of the window, so the lower disc stays clear of the controls.
+                let scale = max(0.01, min(bounds.extents.x / size.x, bounds.extents.y / size.y) * 0.88)
                 root.scale = SIMD3(repeating: scale)
                 // A window's proposed depth is not the preview's display plane.
                 // Keep z at the window plane instead of moving toward the viewer.
@@ -61,9 +64,6 @@ struct OpticsSceneView: View {
             model.syncSceneObjects()
         }
         .onChange(of: model.selectedEffect) { _, _ in
-            model.syncSceneObjects()
-        }
-        .onChange(of: model.previewGroup) { _, _ in
             model.syncSceneObjects()
         }
         #endif

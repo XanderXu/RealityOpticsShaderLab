@@ -203,7 +203,7 @@ def Xform "Root"
         {
             uniform token info:id = "ND_add_color3"
             color3f inputs:in1.connect = </Root/RainbowMaterial/Rainbow.outputs:out>
-            color3f inputs:in2 = (0.009, 0.016, 0.028)
+            color3f inputs:in2.connect = </Root/RainbowMaterial/SubstrateBodyColor.outputs:out>
             color3f outputs:out
         }
 
@@ -215,20 +215,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/RainbowMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/RainbowMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/RainbowMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/RainbowMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/RainbowMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/RainbowMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/RainbowMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/RainbowMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -256,6 +247,32 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/RainbowMaterial.inputs:BaseColor>
+            float inputs:in2 = 0.22
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.009, 0.016, 0.028)
+            color3f inputs:fg.connect = </Root/RainbowMaterial/SubstrateBodyLevel.outputs:out>
+            float inputs:mix.connect = </Root/RainbowMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/RainbowMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/RainbowMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

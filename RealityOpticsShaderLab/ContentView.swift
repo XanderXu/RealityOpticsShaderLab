@@ -87,6 +87,7 @@ struct ContentView: View {
 
             OpticsSceneView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.bottom, 12)
                 .overlay {
                     if model.isLoadingSelected {
                         if model.statusMessage.contains("失败") {
@@ -97,15 +98,10 @@ struct ContentView: View {
                     }
                 }
 
-            HStack {
-                ForEach(model.previewGroup.shapes) { shape in
-                    Label(shape.title, systemImage: shape.symbol)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.bottom, 14)
+            Label("球体 / 平面 · 尺子 / 光盘", systemImage: "square.grid.2x2")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 10)
 
             VStack(spacing: 12) {
                 PreviewControlsView()

@@ -456,7 +456,7 @@ def Xform "Root"
         def Shader "Layer3Behind"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1 = (0.002, 0.004, 0.018)
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/SubstrateBodyColor.outputs:out>
             float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Transmission.outputs:out>
             color3f outputs:out
         }
@@ -1224,20 +1224,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/ParallaxNebulaMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/ParallaxNebulaMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -1265,6 +1256,32 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
+            float inputs:in2 = 0.2
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.002, 0.004, 0.018)
+            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial/SubstrateBodyLevel.outputs:out>
+            float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

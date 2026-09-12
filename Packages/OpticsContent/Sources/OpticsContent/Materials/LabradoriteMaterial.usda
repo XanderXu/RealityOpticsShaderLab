@@ -432,7 +432,7 @@ def Xform "Root"
         def Shader "Body"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1 = (0.016, 0.025, 0.026)
+            color3f inputs:in1.connect = </Root/LabradoriteMaterial/SubstrateBodyColor.outputs:out>
             float inputs:in2.connect = </Root/LabradoriteMaterial/BodyShade.outputs:out>
             color3f outputs:out
         }
@@ -469,20 +469,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LabradoriteMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/LabradoriteMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/LabradoriteMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LabradoriteMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/LabradoriteMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/LabradoriteMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/LabradoriteMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/LabradoriteMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -510,6 +501,24 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstrateBodyColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.016, 0.025, 0.026)
+            color3f inputs:fg.connect = </Root/LabradoriteMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LabradoriteMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/LabradoriteMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LabradoriteMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

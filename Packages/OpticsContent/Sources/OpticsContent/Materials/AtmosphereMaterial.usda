@@ -363,7 +363,7 @@ def Xform "Root"
         def Shader "PlanetSurface"
         {
             uniform token info:id = "ND_multiply_color3FA"
-            color3f inputs:in1 = (0.012, 0.032, 0.065)
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial/SubstrateBodyColor.outputs:out>
             float inputs:in2.connect = </Root/AtmosphereMaterial/Daylight.outputs:out>
             color3f outputs:out
         }
@@ -384,20 +384,11 @@ def Xform "Root"
             color3f outputs:out
         }
 
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AtmosphereMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
-
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/AtmosphereMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/AtmosphereMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/AtmosphereMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -425,6 +416,32 @@ def Xform "Root"
             color3f inputs:diffuseColor = (1, 1, 1)
             float inputs:roughness = 0.75
             token outputs:surface
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
+            float inputs:in2 = 0.3
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.012, 0.032, 0.065)
+            color3f inputs:fg.connect = </Root/AtmosphereMaterial/SubstrateBodyLevel.outputs:out>
+            float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

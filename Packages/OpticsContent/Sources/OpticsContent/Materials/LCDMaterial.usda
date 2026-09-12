@@ -157,7 +157,7 @@ def Xform "Root"
         def Shader "BaseMix"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LCDMaterial/OffColor.outputs:out>
+            color3f inputs:bg.connect = </Root/LCDMaterial/SubstrateBodyColor.outputs:out>
             color3f inputs:fg.connect = </Root/LCDMaterial/OnColor.outputs:out>
             float inputs:mix.connect = </Root/LCDMaterial/SegOn.outputs:out>
             color3f outputs:out
@@ -257,20 +257,12 @@ def Xform "Root"
 
         # Display comparison of a colored base and the optical signal, in linear light.
         # BaseAmount = 0 preserves the original effect; 1 isolates the base color.
-        def Shader "BaseColorBlend"
-        {
-            uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LCDMaterial/GainMul.outputs:out>
-            color3f inputs:fg.connect = </Root/LCDMaterial.inputs:BaseColor>
-            float inputs:mix.connect = </Root/LCDMaterial.inputs:BaseAmount>
-            color3f outputs:out
-        }
 
         def Shader "IntensityBlend"
         {
             uniform token info:id = "ND_mix_color3"
-            color3f inputs:bg.connect = </Root/LCDMaterial.inputs:BaseColor>
-            color3f inputs:fg.connect = </Root/LCDMaterial/BaseColorBlend.outputs:out>
+            color3f inputs:bg.connect = </Root/LCDMaterial/SubstrateIntensityBase.outputs:out>
+            color3f inputs:fg.connect = </Root/LCDMaterial/GainMul.outputs:out>
             float inputs:mix.connect = </Root/LCDMaterial.inputs:Intensity>
             color3f outputs:out
         }
@@ -329,6 +321,32 @@ def Xform "Root"
             float inputs:opacity = 1
             bool inputs:applyPostProcessToneMap = 0
             token outputs:out
+        }
+
+        def Shader "SubstrateBodyLevel"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LCDMaterial.inputs:BaseColor>
+            float inputs:in2 = 0.65
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateBodyColor"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LCDMaterial/OffColor.outputs:out>
+            color3f inputs:fg.connect = </Root/LCDMaterial/SubstrateBodyLevel.outputs:out>
+            float inputs:mix.connect = </Root/LCDMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "SubstrateIntensityBase"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (0.2140411405, 0.2140411405, 0.2140411405)
+            color3f inputs:fg.connect = </Root/LCDMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LCDMaterial.inputs:BaseAmount>
+            color3f outputs:out
         }
     }
 }

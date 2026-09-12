@@ -1,0 +1,69 @@
+2026-09-12 13:17:34.048 simctl[28834:20999106] Metal API Validation Enabled
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.026418125 seconds
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.environment): 0.025793959 seconds
+OPTICS_PERF FIRST_READY gemFire: 1.920627708 seconds
+OPTICS_PERF SELECT gemFire: 0.491258167 seconds; templates=2, textures=2, textureBytes=786432
+OPTICS_PERF SELECT absorbingGlass: 0.236613625 seconds; templates=3, textures=2, textureBytes=786432
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.views): 0.018130625 seconds
+OPTICS_PERF SELECT lenticular: 0.285701125 seconds; templates=4, textures=3, textureBytes=2883584
+OPTICS_PERF SELECT moire: 0.231689708 seconds; templates=5, textures=3, textureBytes=2883584
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.nebula): 0.002704834 seconds
+OPTICS_PERF SELECT parallaxNebula: 0.308434209 seconds; templates=6, textures=4, textureBytes=4980736
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.rainbow): 0.01714675 seconds
+OPTICS_PERF SELECT rainbow: 0.209462209 seconds; templates=7, textures=5, textureBytes=5505024
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.atmosphere): 0.002389791 seconds
+OPTICS_PERF SELECT atmosphere: 0.195068 seconds; templates=8, textures=6, textureBytes=6029312
+OPTICS_PERF LUT GPU grating: 0.002935083 seconds
+OPTICS_PERF SELECT grating: 0.208344709 seconds; templates=9, textures=7, textureBytes=6291456
+OPTICS_PERF LUT GPU nacre: 0.006190875 seconds
+OPTICS_PERF SELECT nacre: 0.078609416 seconds; templates=9, textures=8, textureBytes=6815744
+OPTICS_PERF SELECT opal: 0.201826875 seconds; templates=10, textures=8, textureBytes=6815744
+OPTICS_PERF LUT GPU birefringence: 0.003319834 seconds
+OPTICS_PERF SELECT birefringence: 0.212749458 seconds; templates=11, textures=9, textureBytes=6823936
+OPTICS_PERF SELECT speckle: 0.164581708 seconds; templates=12, textures=9, textureBytes=6823936
+OPTICS_PERF LUT GPU morpho: 0.020990542 seconds
+OPTICS_PERF SELECT morpho: 0.074571167 seconds; templates=12, textures=10, textureBytes=7348224
+OPTICS_PERF SELECT beetle: 0.21055475 seconds; templates=13, textures=10, textureBytes=7348224
+OPTICS_PERF SELECT feather: 0.200262 seconds; templates=14, textures=10, textureBytes=7348224
+OPTICS_PERF SELECT hologram: 0.200927833 seconds; templates=15, textures=10, textureBytes=7348224
+OPTICS_PERF SELECT lcd: 0.188249833 seconds; templates=16, textures=10, textureBytes=7348224
+OPTICS_PERF LUT GPU newton: 0.005670291 seconds
+OPTICS_PERF SELECT newton: 0.200763875 seconds; templates=17, textures=11, textureBytes=8396800
+OPTICS_PERF SELECT pearl: 0.204488375 seconds; templates=18, textures=11, textureBytes=8396800
+OPTICS_PERF SELECT dragonfly: 0.218259958 seconds; templates=19, textures=11, textureBytes=8396800
+OPTICS_PERF SELECT chameleon: 0.212026791 seconds; templates=20, textures=11, textureBytes=8396800
+OPTICS_PERF SELECT scarab: 0.1847725 seconds; templates=21, textures=11, textureBytes=8396800
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.coating): 0.015506083 seconds
+OPTICS_PERF SELECT lensCoating: 0.226437792 seconds; templates=22, textures=12, textureBytes=8921088
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.titanium): 0.020815458 seconds
+OPTICS_PERF SELECT titanium: 0.049481625 seconds; templates=22, textures=13, textureBytes=9445376
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.oil): 0.005775125 seconds
+OPTICS_PERF SELECT oilFilm: 0.035101208 seconds; templates=22, textures=14, textureBytes=9969664
+OPTICS_PERF SELECT retroreflective: 0.175685584 seconds; templates=23, textures=14, textureBytes=9969664
+OPTICS_PERF LUT GPU layered(OpticsPhysics.LayeredFilm.dichroic): 0.025612917 seconds
+OPTICS_PERF SELECT dichroic: 0.077939583 seconds; templates=23, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT pleochroism: 0.216736584 seconds; templates=24, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT alexandrite: 0.177888875 seconds; templates=25, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT sunstone: 0.209954 seconds; templates=26, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT labradorite: 0.232395959 seconds; templates=27, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT moonstone: 0.193857959 seconds; templates=28, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT starGem: 0.229853834 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT catEye: 0.024470417 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT bindings: 35 effects / 5 colors / 3 amounts; 4 live samples; no color resource builds
+OPTICS_PERF SELECT thinFilm: 1.4833e-05 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT thinFilm: 0.000926209 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE basic-original
+OPTICS_PERF SELECT thinFilm: 0.000193542 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE basic-rear
+OPTICS_PERF SELECT thinFilm: 3.55e-05 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE basic-red
+OPTICS_PERF SELECT thinFilm: 4.0625e-05 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE basic-white-replaced
+OPTICS_PERF SELECT grating: 3.6542e-05 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PERF SELECT grating: 0.000916458 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE instruments-original
+OPTICS_PERF SELECT grating: 0.00016875 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE instruments-rear
+OPTICS_PERF SELECT grating: 3.9625e-05 seconds; templates=29, textures=15, textureBytes=10493952
+OPTICS_PREVIEW_AUDIT CAPTURE instruments-white
+OPTICS_PREVIEW_AUDIT PASS: four geometries, all material base colors, original restore, shared resources
