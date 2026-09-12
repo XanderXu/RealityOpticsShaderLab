@@ -1,6 +1,6 @@
 # RealityOpticsShaderLab
 
-支持 visionOS 与 iOS 18+、基于 RealityKit ShaderGraph 与 Metal Compute 的光学效果库，实时展示 35 种光学与结构色效果。手机使用 `RealityOpticsShaderLab-iOS` Scheme，见 [iOS 运行说明](docs/iOS.md)。
+支持 visionOS 与 iOS 18+、基于 RealityKit ShaderGraph 与 Metal Compute 的光学效果库，实时展示 35 种光学与结构色效果。手机使用 `RealityOpticsShaderLab-iOS` Scheme。
 
 ## 效果清单
 
