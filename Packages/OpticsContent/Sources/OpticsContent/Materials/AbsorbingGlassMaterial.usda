@@ -1,0 +1,771 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "AbsorbingGlassMaterial"
+    {
+        float inputs:Thickness = 0.85
+        float inputs:Tint = 0.25
+        float inputs:Refraction = 1.5
+        float inputs:Gain = 1.2
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:Environment
+        token outputs:mtlx:surface.connect = </Root/AbsorbingGlassMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/AbsorbingGlassMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "RawNV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FaceSign"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/AbsorbingGlassMaterial/RawNV.outputs:out>
+            float inputs:value2 = 0.0
+            float inputs:in1 = 1.0
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "FacingNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/Normal.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/FaceSign.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Eta"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial.inputs:Refraction>
+            float outputs:out
+        }
+
+        def Shader "GlassRayDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayNV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/GlassRayDot.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "GlassRayEta2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Eta.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/Eta.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayOneMinusEta2"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayEta2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayNV2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayCosTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayEta2.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNV2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayK"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayOneMinusEta2.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayCosTerm.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRaySafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayK.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "GlassRayRoot"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/GlassRaySafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayEN"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Eta.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayScale"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayEN.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "GlassRayNegEta"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Eta.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "GlassRayIncident"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/View.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNegEta.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "GlassRayNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/FacingNormal.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayScale.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "GlassRay"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayIncident.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "SafeCos"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayRoot.outputs:out>
+            float inputs:in2 = 0.05
+            float outputs:out
+        }
+
+        def Shader "OpticalPath"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial.inputs:Thickness>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/SafeCos.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsorptionCoefficients"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg = (2.8, 0.35, 0.08)
+            color3f inputs:fg = (0.1, 0.65, 3.2)
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:Tint>
+            color3f outputs:out
+        }
+
+        def Shader "NegativePath"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/OpticalPath.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "NegativeOpticalDepth"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/AbsorptionCoefficients.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/NegativePath.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "DepthVector"
+        {
+            uniform token info:id = "ND_convert_color3_vector3"
+            color3f inputs:in.connect = </Root/AbsorbingGlassMaterial/NegativeOpticalDepth.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Transmittance"
+        {
+            uniform token info:id = "ND_exp_vector3"
+            float3 inputs:in.connect = </Root/AbsorbingGlassMaterial/DepthVector.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Transmission"
+        {
+            uniform token info:id = "ND_convert_vector3_color3"
+            float3 inputs:in.connect = </Root/AbsorbingGlassMaterial/Transmittance.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "BackgroundTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/AbsorbingGlassMaterial/GlassRay.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "BackgroundWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/BackgroundTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BackgroundWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "BackgroundWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/BackgroundWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BackgroundWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundTransform.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/BackgroundWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "BackgroundX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "BackgroundY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "BackgroundZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "BackgroundAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/AbsorbingGlassMaterial/BackgroundZ.outputs:out>
+            float inputs:inx.connect = </Root/AbsorbingGlassMaterial/BackgroundX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BackgroundAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "BackgroundU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "BackgroundYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "BackgroundV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "BackgroundUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/BackgroundU.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/BackgroundV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Background"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/AbsorbingGlassMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/AbsorbingGlassMaterial/BackgroundUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "ColoredTransmission"
+        {
+            uniform token info:id = "ND_multiply_color3"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/Background.outputs:out>
+            color3f inputs:in2.connect = </Root/AbsorbingGlassMaterial/Transmission.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "TwiceNV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "TwiceNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/FacingNormal.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/TwiceNV.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ReflectionVector"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/TwiceNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/View.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "IndexCosInside"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial.inputs:Refraction>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "IndexCosIncident"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial.inputs:Refraction>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RsNumerator"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/IndexCosInside.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RsSum"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/GlassRayNV.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/IndexCosInside.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RsDenominator"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/RsSum.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Rs"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/RsNumerator.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/RsDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RpNumerator"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/IndexCosIncident.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RpSum"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/IndexCosIncident.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/GlassRayRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RpDenominator"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/RpSum.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Rp"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/RpNumerator.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/RpDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Rs2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Rs.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/Rs.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Rp2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Rp.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/Rp.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PolarizedSum"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/Rs2.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/Rp2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FresnelAverage"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/PolarizedSum.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Fresnel"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/AbsorbingGlassMaterial.inputs:Refraction>
+            float inputs:value2 = 1.0
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/FresnelAverage.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/AbsorbingGlassMaterial/ReflectionVector.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "SurfaceReflectionWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionTransform.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "SurfaceReflectionX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionZ.outputs:out>
+            float inputs:inx.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SurfaceReflectionUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionU.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "SurfaceReflection"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/AbsorbingGlassMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/AbsorbingGlassMaterial/SurfaceReflectionUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Glass"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial/ColoredTransmission.outputs:out>
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial/SurfaceReflection.outputs:out>
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial/Fresnel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/Glass.outputs:out>
+            float inputs:in2.connect = </Root/AbsorbingGlassMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AbsorbingGlassMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/AbsorbingGlassMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/AbsorbingGlassMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/AbsorbingGlassMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/AbsorbingGlassMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

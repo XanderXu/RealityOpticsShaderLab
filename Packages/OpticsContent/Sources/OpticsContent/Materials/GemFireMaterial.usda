@@ -1,0 +1,1715 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "GemFireMaterial"
+    {
+        float inputs:FacetScale = 8
+        float inputs:CutStrength = 0.55
+        float inputs:Dispersion = 0.16
+        float inputs:InternalMix = 0.65
+        float inputs:Gain = 1.2
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:Environment
+        token outputs:mtlx:surface.connect = </Root/GemFireMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/GemFireMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "FacetPosition"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/UnitPosition.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial.inputs:FacetScale>
+            float3 outputs:out
+        }
+
+        def Shader "CutPositionX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacetPosition.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "CutPositionY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacetPosition.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "CutXFloor"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/GemFireMaterial/CutPositionX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CutX"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/CutPositionX.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/CutXFloor.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CutYFloor"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/GemFireMaterial/CutPositionY.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CutY"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/CutPositionY.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/CutYFloor.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Diagonal"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/CutX.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/CutY.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Triangle"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/GemFireMaterial/Diagonal.outputs:out>
+            float inputs:value2 = 1.0
+            float inputs:in1 = 1.0
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "CutCell"
+        {
+            uniform token info:id = "ND_floor_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/FacetPosition.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "TriangleOffset"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1 = (17.0, 29.0, 13.0)
+            float inputs:in2.connect = </Root/GemFireMaterial/Triangle.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "TriangleCell"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/CutCell.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/TriangleOffset.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "FacetNoiseX"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/GemFireMaterial/TriangleCell.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetX"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/FacetNoiseX.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "NoiseOffset"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/TriangleCell.outputs:out>
+            float3 inputs:in2 = (17.0, 23.0, 5.0)
+            float3 outputs:out
+        }
+
+        def Shader "FacetNoiseY"
+        {
+            uniform token info:id = "ND_cellnoise3d_float"
+            float3 inputs:position.connect = </Root/GemFireMaterial/NoiseOffset.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetY"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/FacetNoiseY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "CutVector"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/GemFireMaterial/FacetX.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/FacetY.outputs:out>
+            float inputs:in3 = 0.0
+            float3 outputs:out
+        }
+
+        def Shader "CutTilt"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/CutVector.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial.inputs:CutStrength>
+            float3 outputs:out
+        }
+
+        def Shader "CutNormal"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/CutTilt.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "FacetSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/CutNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/CutNormal.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FacetSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/FacetSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "FacetLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/FacetSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Facet"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/CutNormal.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/FacetLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "RawNV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Facet.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FaceSign"
+        {
+            uniform token info:id = "ND_ifgreater_float"
+            float inputs:value1.connect = </Root/GemFireMaterial/RawNV.outputs:out>
+            float inputs:value2 = 0.0
+            float inputs:in1 = 1.0
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "FacingNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Facet.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/FaceSign.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "InternalFacetOffset"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2 = (0.7, -0.5, 0.25)
+            float3 outputs:out
+        }
+
+        def Shader "InternalFacetSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/InternalFacetOffset.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/InternalFacetOffset.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "InternalFacetSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/InternalFacetSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "InternalFacetLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/InternalFacetSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "InternalFacet"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/InternalFacetOffset.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/InternalFacetLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "EntryDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacingNormal.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "EntryNV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/GemFireMaterial/EntryDot.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Band0Dispersion"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial.inputs:Dispersion>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "Band0IOR"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 2.4
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0Dispersion.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0Eta"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0IOR.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryEta2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0Eta.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryOneMinusEta2"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryEta2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryNV2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryCosTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0EntryEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryNV2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryK"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0EntryOneMinusEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryCosTerm.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntrySafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0EntryK.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Band0EntryRoot"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band0EntrySafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryEN"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryScale"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0EntryEN.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0EntryNegEta"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0Eta.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "Band0EntryIncident"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/View.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryNegEta.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0EntryNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacingNormal.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0EntryScale.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0Entry"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0EntryIncident.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band0EntryNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0BounceDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0TwiceDot"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0BounceDot.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "Band0BounceNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0TwiceDot.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0Bounce"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band0BounceNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0DirectTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band0Entry.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band0DirectWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0DirectTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band0DirectTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0DirectWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band0DirectWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band0DirectWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0DirectWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0DirectTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0DirectWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0DirectX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0DirectWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band0DirectY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band0DirectZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band0DirectAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band0DirectZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band0DirectX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0DirectAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band0DirectU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0DirectYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0DirectV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0DirectUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0DirectU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0DirectV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band0Direct"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band0DirectUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band0InternalTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band0Bounce.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band0InternalWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0InternalTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band0InternalTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0InternalWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band0InternalWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band0InternalWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0InternalWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0InternalTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0InternalWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band0InternalX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0InternalWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band0InternalY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band0InternalZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band0InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band0InternalAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band0InternalZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band0InternalX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band0InternalAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band0InternalU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0InternalYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0InternalV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band0InternalUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band0InternalU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band0InternalV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band0Internal"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band0InternalUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band0PathMix"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/GemFireMaterial/Band0Direct.outputs:out>
+            color3f inputs:fg.connect = </Root/GemFireMaterial/Band0Internal.outputs:out>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:InternalMix>
+            color3f outputs:out
+        }
+
+        def Shader "Band0Channel"
+        {
+            uniform token info:id = "ND_multiply_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Band0PathMix.outputs:out>
+            color3f inputs:in2 = (1.0, 0.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "Band1Dispersion"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial.inputs:Dispersion>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Band1IOR"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 2.4
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1Dispersion.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1Eta"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1IOR.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryEta2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1Eta.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryOneMinusEta2"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryEta2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryNV2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryCosTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1EntryEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryNV2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryK"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1EntryOneMinusEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryCosTerm.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntrySafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1EntryK.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Band1EntryRoot"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band1EntrySafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryEN"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryScale"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1EntryEN.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1EntryNegEta"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1Eta.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "Band1EntryIncident"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/View.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryNegEta.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1EntryNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacingNormal.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1EntryScale.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1Entry"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1EntryIncident.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band1EntryNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1BounceDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1TwiceDot"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1BounceDot.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "Band1BounceNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1TwiceDot.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1Bounce"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band1BounceNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1DirectTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band1Entry.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band1DirectWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1DirectTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band1DirectTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1DirectWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band1DirectWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band1DirectWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1DirectWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1DirectTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1DirectWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1DirectX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1DirectWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band1DirectY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band1DirectZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band1DirectAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band1DirectZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band1DirectX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1DirectAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band1DirectU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1DirectYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1DirectV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1DirectUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1DirectU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1DirectV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band1Direct"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band1DirectUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band1InternalTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band1Bounce.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band1InternalWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1InternalTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band1InternalTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1InternalWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band1InternalWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band1InternalWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1InternalWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1InternalTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1InternalWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band1InternalX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1InternalWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band1InternalY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band1InternalZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band1InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band1InternalAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band1InternalZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band1InternalX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band1InternalAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band1InternalU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1InternalYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1InternalV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band1InternalUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band1InternalU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band1InternalV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band1Internal"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band1InternalUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band1PathMix"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/GemFireMaterial/Band1Direct.outputs:out>
+            color3f inputs:fg.connect = </Root/GemFireMaterial/Band1Internal.outputs:out>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:InternalMix>
+            color3f outputs:out
+        }
+
+        def Shader "Band1Channel"
+        {
+            uniform token info:id = "ND_multiply_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Band1PathMix.outputs:out>
+            color3f inputs:in2 = (0.0, 1.0, 0.0)
+            color3f outputs:out
+        }
+
+        def Shader "Band2Dispersion"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial.inputs:Dispersion>
+            float inputs:in2 = 1.0
+            float outputs:out
+        }
+
+        def Shader "Band2IOR"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 2.4
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2Dispersion.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2Eta"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2IOR.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryEta2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2Eta.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryOneMinusEta2"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryEta2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryNV2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryCosTerm"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2EntryEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryNV2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryK"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2EntryOneMinusEta2.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryCosTerm.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntrySafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2EntryK.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Band2EntryRoot"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band2EntrySafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryEN"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2Eta.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/EntryNV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryScale"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2EntryEN.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryRoot.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2EntryNegEta"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2Eta.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "Band2EntryIncident"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/View.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryNegEta.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2EntryNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/FacingNormal.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2EntryScale.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2Entry"
+        {
+            uniform token info:id = "ND_add_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2EntryIncident.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band2EntryNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2BounceDot"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2TwiceDot"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2BounceDot.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "Band2BounceNormal"
+        {
+            uniform token info:id = "ND_multiply_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/InternalFacet.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2TwiceDot.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2Bounce"
+        {
+            uniform token info:id = "ND_subtract_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2Entry.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band2BounceNormal.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2DirectTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band2Entry.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band2DirectWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2DirectTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band2DirectTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2DirectWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band2DirectWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band2DirectWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2DirectWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2DirectTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2DirectWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2DirectX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2DirectWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band2DirectY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band2DirectZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2DirectWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band2DirectAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band2DirectZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band2DirectX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2DirectAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band2DirectU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2DirectYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2DirectV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2DirectUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2DirectU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2DirectV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band2Direct"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band2DirectUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band2InternalTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/GemFireMaterial/Band2Bounce.outputs:out>
+            string inputs:fromspace = "object"
+            string inputs:tospace = "world"
+            float3 outputs:out
+        }
+
+        def Shader "Band2InternalWorldSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2InternalTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/GemFireMaterial/Band2InternalTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2InternalWorldSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalWorldSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "Band2InternalWorldLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/GemFireMaterial/Band2InternalWorldSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2InternalWorld"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2InternalTransform.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2InternalWorldLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Band2InternalX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2InternalWorld.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band2InternalY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "Band2InternalZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/GemFireMaterial/Band2InternalWorld.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "Band2InternalAzimuth"
+        {
+            uniform token info:id = "ND_atan2_float"
+            float inputs:iny.connect = </Root/GemFireMaterial/Band2InternalZ.outputs:out>
+            float inputs:inx.connect = </Root/GemFireMaterial/Band2InternalX.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Band2InternalAzScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalAzimuth.outputs:out>
+            float inputs:in2 = 0.1591549431
+            float outputs:out
+        }
+
+        def Shader "Band2InternalU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalAzScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2InternalYScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalY.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2InternalV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalYScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Band2InternalUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/GemFireMaterial/Band2InternalU.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial/Band2InternalV.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Band2Internal"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/GemFireMaterial.inputs:Environment>
+            float2 inputs:texcoord.connect = </Root/GemFireMaterial/Band2InternalUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Band2PathMix"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/GemFireMaterial/Band2Direct.outputs:out>
+            color3f inputs:fg.connect = </Root/GemFireMaterial/Band2Internal.outputs:out>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:InternalMix>
+            color3f outputs:out
+        }
+
+        def Shader "Band2Channel"
+        {
+            uniform token info:id = "ND_multiply_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Band2PathMix.outputs:out>
+            color3f inputs:in2 = (0.0, 0.0, 1.0)
+            color3f outputs:out
+        }
+
+        def Shader "RG"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Band0Channel.outputs:out>
+            color3f inputs:in2.connect = </Root/GemFireMaterial/Band1Channel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Fire"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/RG.outputs:out>
+            color3f inputs:in2.connect = </Root/GemFireMaterial/Band2Channel.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/Fire.outputs:out>
+            float inputs:in2.connect = </Root/GemFireMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/GemFireMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/GemFireMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/GemFireMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/GemFireMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/GemFireMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/GemFireMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/GemFireMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

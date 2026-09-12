@@ -1,0 +1,1270 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "ParallaxNebulaMaterial"
+    {
+        float inputs:Depth = 0.35
+        float inputs:Scale = 0.85
+        float inputs:Density = 0.65
+        float inputs:Gain = 1.6
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:Layers
+        token outputs:mtlx:surface.connect = </Root/ParallaxNebulaMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/ParallaxNebulaMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/ParallaxNebulaMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "SurfaceX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "UScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceX.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/UScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "VScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceY.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/VScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ObserverX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/View.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "ObserverY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/View.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "ObserverZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/View.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "AbsViewZ"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/ObserverZ.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ParallaxDenominator"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/AbsViewZ.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "SlopeX"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ObserverX.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/ParallaxDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SlopeY"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ObserverY.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/ParallaxDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CenteredSurfaceU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceU.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SurfaceScaleU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/CenteredSurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Scale>
+            float outputs:out
+        }
+
+        def Shader "ScaledSurfaceU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceScaleU.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "CenteredSurfaceV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceV.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SurfaceScaleV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/CenteredSurfaceV.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Scale>
+            float outputs:out
+        }
+
+        def Shader "ScaledSurfaceV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SurfaceScaleV.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer3Depth"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial.inputs:Depth>
+            float inputs:in2 = 1.0
+            float outputs:out
+        }
+
+        def Shader "Layer3UParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3U"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3UParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3VParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeY.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3V"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceV.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3VParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3Left"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3U.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer3RemainingU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3U.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3Right"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3RemainingU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer3EdgeU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Left.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Right.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3Bottom"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3V.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer3RemainingV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3V.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3Top"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3RemainingV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer3EdgeV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Bottom.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Top.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3EdgeMask"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3EdgeU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3EdgeV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3U.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer3UTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3UClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer3VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3V.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer3VTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3VClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer3UOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3UTile.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer3VOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3VTile.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer3UV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3UOffset.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3VOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Layer3"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/ParallaxNebulaMaterial.inputs:Layers>
+            float2 inputs:texcoord.connect = </Root/ParallaxNebulaMaterial/Layer3UV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Layer3Faded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3EdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer3Vector"
+        {
+            uniform token info:id = "ND_convert_color3_vector3"
+            color3f inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3Faded.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Layer3Luminance"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Vector.outputs:out>
+            float3 inputs:in2 = (0.2126, 0.7152, 0.0722)
+            float outputs:out
+        }
+
+        def Shader "Layer3Density"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Luminance.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Density>
+            float outputs:out
+        }
+
+        def Shader "Layer3Alpha"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer3Density.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 0.85
+            float outputs:out
+        }
+
+        def Shader "Layer3Transmission"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Alpha.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer3Behind"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1 = (0.002, 0.004, 0.018)
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Transmission.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer3Composite"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Faded.outputs:out>
+            color3f inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer3Behind.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer2Depth"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial.inputs:Depth>
+            float inputs:in2 = 0.75
+            float outputs:out
+        }
+
+        def Shader "Layer2UParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2U"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2UParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2VParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeY.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2V"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceV.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2VParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2Left"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2U.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer2RemainingU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2U.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2Right"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2RemainingU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer2EdgeU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Left.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Right.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2Bottom"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2V.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer2RemainingV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2V.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2Top"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2RemainingV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer2EdgeV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Bottom.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Top.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2EdgeMask"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2EdgeU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2EdgeV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2U.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer2UTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2UClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer2VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2V.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer2VTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2VClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer2UOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2UTile.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Layer2VOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2VTile.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer2UV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2UOffset.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2VOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Layer2"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/ParallaxNebulaMaterial.inputs:Layers>
+            float2 inputs:texcoord.connect = </Root/ParallaxNebulaMaterial/Layer2UV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Layer2Faded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2EdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer2Vector"
+        {
+            uniform token info:id = "ND_convert_color3_vector3"
+            color3f inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2Faded.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Layer2Luminance"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Vector.outputs:out>
+            float3 inputs:in2 = (0.2126, 0.7152, 0.0722)
+            float outputs:out
+        }
+
+        def Shader "Layer2Density"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Luminance.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Density>
+            float outputs:out
+        }
+
+        def Shader "Layer2Alpha"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer2Density.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 0.85
+            float outputs:out
+        }
+
+        def Shader "Layer2Transmission"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Alpha.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer2Behind"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer3Composite.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Transmission.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer2Composite"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Faded.outputs:out>
+            color3f inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer2Behind.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer1Depth"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial.inputs:Depth>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer1UParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1U"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1UParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1VParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeY.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1V"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceV.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1VParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1Left"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1U.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer1RemainingU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1U.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1Right"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1RemainingU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer1EdgeU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Left.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Right.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1Bottom"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1V.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer1RemainingV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1V.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1Top"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1RemainingV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer1EdgeV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Bottom.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Top.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1EdgeMask"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1EdgeU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1EdgeV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1U.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer1UTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1UClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer1VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1V.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer1VTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1VClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer1UOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1UTile.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer1VOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1VTile.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Layer1UV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1UOffset.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1VOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Layer1"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/ParallaxNebulaMaterial.inputs:Layers>
+            float2 inputs:texcoord.connect = </Root/ParallaxNebulaMaterial/Layer1UV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Layer1Faded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1EdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer1Vector"
+        {
+            uniform token info:id = "ND_convert_color3_vector3"
+            color3f inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1Faded.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Layer1Luminance"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Vector.outputs:out>
+            float3 inputs:in2 = (0.2126, 0.7152, 0.0722)
+            float outputs:out
+        }
+
+        def Shader "Layer1Density"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Luminance.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Density>
+            float outputs:out
+        }
+
+        def Shader "Layer1Alpha"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer1Density.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 0.85
+            float outputs:out
+        }
+
+        def Shader "Layer1Transmission"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Alpha.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer1Behind"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer2Composite.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Transmission.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer1Composite"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Faded.outputs:out>
+            color3f inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer1Behind.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer0Depth"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial.inputs:Depth>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "Layer0UParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0U"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0UParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0VParallax"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/SlopeY.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Depth.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0V"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/ScaledSurfaceV.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0VParallax.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0Left"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0U.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer0RemainingU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0U.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0Right"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0RemainingU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer0EdgeU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Left.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Right.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0Bottom"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0V.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer0RemainingV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0V.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0Top"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0RemainingV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "Layer0EdgeV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Bottom.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Top.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0EdgeMask"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0EdgeU.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0EdgeV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0UClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0U.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer0UTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0UClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer0VClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0V.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "Layer0VTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0VClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Layer0UOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0UTile.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Layer0VOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0VTile.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Layer0UV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0UOffset.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0VOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Layer0"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/ParallaxNebulaMaterial.inputs:Layers>
+            float2 inputs:texcoord.connect = </Root/ParallaxNebulaMaterial/Layer0UV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "Layer0Faded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0EdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer0Vector"
+        {
+            uniform token info:id = "ND_convert_color3_vector3"
+            color3f inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0Faded.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Layer0Luminance"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Vector.outputs:out>
+            float3 inputs:in2 = (0.2126, 0.7152, 0.0722)
+            float outputs:out
+        }
+
+        def Shader "Layer0Density"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Luminance.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Density>
+            float outputs:out
+        }
+
+        def Shader "Layer0Alpha"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/ParallaxNebulaMaterial/Layer0Density.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 0.85
+            float outputs:out
+        }
+
+        def Shader "Layer0Transmission"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Alpha.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Layer0Behind"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer1Composite.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Transmission.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Layer0Composite"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Faded.outputs:out>
+            color3f inputs:in2.connect = </Root/ParallaxNebulaMaterial/Layer0Behind.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/Layer0Composite.outputs:out>
+            float inputs:in2.connect = </Root/ParallaxNebulaMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/ParallaxNebulaMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/ParallaxNebulaMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/ParallaxNebulaMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/ParallaxNebulaMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/ParallaxNebulaMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/ParallaxNebulaMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

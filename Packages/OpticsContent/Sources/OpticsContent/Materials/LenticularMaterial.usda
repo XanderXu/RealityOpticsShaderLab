@@ -1,0 +1,655 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "LenticularMaterial"
+    {
+        float inputs:ViewSpread = 1
+        float inputs:LensPitch = 42
+        float inputs:BlendWidth = 0.22
+        float inputs:Gain = 1.2
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:Views
+        token outputs:mtlx:surface.connect = </Root/LenticularMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/LenticularMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/LenticularMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "SurfaceX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "UScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/SurfaceX.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/UScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "VScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/SurfaceY.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/VScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ObserverX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/View.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "ObserverZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/LenticularMaterial/View.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "AbsViewZ"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ObserverZ.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ParallaxDenominator"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/AbsViewZ.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "SlopeX"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ObserverX.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ParallaxDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LensCoordinate"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/SurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial.inputs:LensPitch>
+            float outputs:out
+        }
+
+        def Shader "LensPhaseFloor"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/LenticularMaterial/LensCoordinate.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LensPhase"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LensCoordinate.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/LensPhaseFloor.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewAngle"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial.inputs:ViewSpread>
+            float outputs:out
+        }
+
+        def Shader "ViewOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 1.25
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewAngle.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewIndex"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewOffset.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 3
+            float outputs:out
+        }
+
+        def Shader "CenteredPhase"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LensPhase.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "LensWarp"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/CenteredPhase.outputs:out>
+            float inputs:in2 = 0.22
+            float outputs:out
+        }
+
+        def Shader "LensViewOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewIndex.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/LensWarp.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LensView"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LenticularMaterial/LensViewOffset.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 3
+            float outputs:out
+        }
+
+        def Shader "IndexFloor"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/LenticularMaterial/LensView.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LowerIndex"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LenticularMaterial/IndexFloor.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 2.0
+            float outputs:out
+        }
+
+        def Shader "UpperIndex"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LowerIndex.outputs:out>
+            float inputs:in2 = 1.0
+            float outputs:out
+        }
+
+        def Shader "TransitionCenter"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LowerIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "HalfBlend"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial.inputs:BlendWidth>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "BlendLow"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/TransitionCenter.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/HalfBlend.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BlendHigh"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/TransitionCenter.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/HalfBlend.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewBlend"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LenticularMaterial/LensView.outputs:out>
+            float inputs:low.connect = </Root/LenticularMaterial/BlendLow.outputs:out>
+            float inputs:high.connect = </Root/LenticularMaterial/BlendHigh.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainLeft"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LenticularMaterial/SurfaceU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "ViewDomainRemainingU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/LenticularMaterial/SurfaceU.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainRight"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewDomainRemainingU.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "ViewDomainEdgeU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainLeft.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewDomainRight.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainBottom"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LenticularMaterial/SurfaceV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "ViewDomainRemainingV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/LenticularMaterial/SurfaceV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainTop"
+        {
+            uniform token info:id = "ND_smoothstep_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewDomainRemainingV.outputs:out>
+            float inputs:low = 0.0
+            float inputs:high = 0.05
+            float outputs:out
+        }
+
+        def Shader "ViewDomainEdgeV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainBottom.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewDomainTop.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainEdgeMask"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainEdgeU.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewDomainEdgeV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewDomainUClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LenticularMaterial/SurfaceU.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "ViewDomainUTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainUClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewDomainVClamp"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/LenticularMaterial/SurfaceV.outputs:out>
+            float inputs:low = 0.001953125
+            float inputs:high = 0.998046875
+            float outputs:out
+        }
+
+        def Shader "ViewDomainVTile"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainVClamp.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewLowerHalfIndex"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LowerIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewLowerRowIndex"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewLowerHalfIndex.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewLowerTwiceRow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewLowerRowIndex.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "ViewLowerColumnIndex"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/LowerIndex.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewLowerTwiceRow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewLowerColumn"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewLowerColumnIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewLowerRow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewLowerRowIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewLowerUOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainUTile.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewLowerColumn.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewLowerVOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainVTile.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewLowerRow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewLowerUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewLowerUOffset.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewLowerVOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "ViewLower"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/LenticularMaterial.inputs:Views>
+            float2 inputs:texcoord.connect = </Root/LenticularMaterial/ViewLowerUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "ViewLowerFaded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LenticularMaterial/ViewLower.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewDomainEdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "ViewUpperHalfIndex"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/UpperIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewUpperRowIndex"
+        {
+            uniform token info:id = "ND_floor_float"
+            float inputs:in.connect = </Root/LenticularMaterial/ViewUpperHalfIndex.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewUpperTwiceRow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewUpperRowIndex.outputs:out>
+            float inputs:in2 = 2.0
+            float outputs:out
+        }
+
+        def Shader "ViewUpperColumnIndex"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/UpperIndex.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewUpperTwiceRow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewUpperColumn"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewUpperColumnIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewUpperRow"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewUpperRowIndex.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewUpperUOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainUTile.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewUpperColumn.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewUpperVOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewDomainVTile.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewUpperRow.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewUpperUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/LenticularMaterial/ViewUpperUOffset.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewUpperVOffset.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "ViewUpper"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/LenticularMaterial.inputs:Views>
+            float2 inputs:texcoord.connect = </Root/LenticularMaterial/ViewUpperUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "ViewUpperFaded"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LenticularMaterial/ViewUpper.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial/ViewDomainEdgeMask.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "SelectedView"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LenticularMaterial/ViewLowerFaded.outputs:out>
+            color3f inputs:fg.connect = </Root/LenticularMaterial/ViewUpperFaded.outputs:out>
+            float inputs:mix.connect = </Root/LenticularMaterial/ViewBlend.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/LenticularMaterial/SelectedView.outputs:out>
+            float inputs:in2.connect = </Root/LenticularMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LenticularMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/LenticularMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/LenticularMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/LenticularMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/LenticularMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/LenticularMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/LenticularMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/LenticularMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

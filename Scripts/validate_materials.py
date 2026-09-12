@@ -82,7 +82,7 @@ class Graph:
                     assert declared[f'inputs:{axis}addressmode'][2] == 'clamp', f'{self.name}/{name}: LUT wrapping'
             if kind in ['ND_normal_vector3', 'ND_tangent_vector3', 'ND_bitangent_vector3', 'ND_realitykit_viewdirection_vector3']:
                 assert 'inputs:space' in declared, f'{self.name}/{name}: implicit coordinate space'
-                expected = 'object' if self.name in ['SpeckleMaterial','ChatoyancyMaterial','MoonstoneMaterial','LabradoriteMaterial','SunstoneMaterial','AlexandriteMaterial','PleochroismMaterial','RetroreflectiveMaterial','LayeredFilmMaterial'] else 'world'
+                expected = 'object' if self.name in ['SpeckleMaterial','ChatoyancyMaterial','MoonstoneMaterial','LabradoriteMaterial','SunstoneMaterial','AlexandriteMaterial','PleochroismMaterial','RetroreflectiveMaterial','LayeredFilmMaterial','GemFireMaterial','AbsorbingGlassMaterial','LenticularMaterial','MoireMaterial','ParallaxNebulaMaterial','RainbowMaterial','AtmosphereMaterial'] else 'world'
                 assert declared['inputs:space'][2] == expected, f'{self.name}/{name}: mixed direction spaces'
             active.remove(name)
             visited.add(name)
@@ -120,15 +120,18 @@ class Graph:
             elif op in ['normal', 'tangent', 'bitangent']:
                 out = {'normal': (0., 0., 1.), 'tangent': (1., 0., 0.), 'bitangent': (0., 1., 0.)}[op]
             elif kind == 'ND_realitykit_viewdirection_vector3': out = fixtures.get('view', (0.3, 0.4, 0.8660254))
-            elif op == 'image': out = fixtures.get('texture', (0.02, 0.25, 1.5))
+            elif op == 'image':
+                texture=fixtures.get('texture', (0.02, 0.25, 1.5))
+                out=texture(args['texcoord']) if callable(texture) else texture
             elif op in ['cellnoise2d', 'cellnoise3d', 'worleynoise2d']: out = fixtures.get('noise', 0.5)
             elif op == 'fractal3d': out = (fixtures.get('fractal', 0.4),) * 3
             elif op == 'time': out = fixtures.get('time', 2.0)
             elif op in ['add', 'subtract', 'multiply', 'divide', 'min', 'max', 'power']:
                 funcs = {'add': lambda a,b:a+b, 'subtract':lambda a,b:a-b, 'multiply':lambda a,b:a*b, 'divide':lambda a,b:a/b, 'min':min, 'max':max, 'power':pow}
                 out = each(funcs[op], args['in1'], args['in2'])
-            elif op in ['absval', 'sin', 'cos', 'exp', 'sqrt', 'floor']:
-                out = each({'absval':abs, 'sin':math.sin, 'cos':math.cos, 'exp':math.exp, 'sqrt':math.sqrt, 'floor':math.floor}[op], args['in'])
+            elif op in ['absval', 'sin', 'cos', 'exp', 'sqrt', 'floor', 'acos']:
+                out = each({'absval':abs, 'sin':math.sin, 'cos':math.cos, 'exp':math.exp, 'sqrt':math.sqrt, 'floor':math.floor, 'acos':math.acos}[op], args['in'])
+            elif op == 'atan2': out = math.atan2(args['iny'],args['inx'])
             elif op == 'clamp': out = each(lambda x,lo,hi:min(max(x,lo),hi), args['in'], args['low'], args['high'])
             elif op == 'ifgreater': out=args['in1'] if args['value1']>args['value2'] else args['in2']
             elif op == 'mix': out = each(lambda a,b,t:a*(1-t)+b*t, args['bg'], args['fg'], args['mix'])
@@ -235,6 +238,57 @@ def extended_controls(graphs):
     for channel,expected in [(0,(0.,0.2,1.2)),(1,(1.1,0.8,0.))]:
         out=layer.evaluate('DisplayChannel',{'Transmission':channel},{'RawReflection':raw})
         assert all(math.isclose(a,b,abs_tol=1e-7) for a,b in zip(out,expected)), 'Complement clipped too early'
+    # New angular behavior: avoid tests masked by a constant texture fixture.
+    glass=graphs['AbsorbingGlassMaterial']
+    assert all(math.isclose(c,1,abs_tol=1e-6) for c in glass.evaluate('Transmission',{'Thickness':0}))
+    thin=glass.evaluate('Transmission',{'Thickness':0.3});thick=glass.evaluate('Transmission',{'Thickness':2})
+    assert all(a>b for a,b in zip(thin,thick)), 'Absorption must increase with path length'
+    moire=graphs['MoireMaterial']
+    front={'view':(0.,0.,1.)};side={'view':(.6,0.,.8)}
+    assert moire.evaluate('BeatColor',fixtures=front)!=moire.evaluate('BeatColor',fixtures=side)
+    assert moire.evaluate('BeatColor',{'LayerGap':0},front)==moire.evaluate('BeatColor',{'LayerGap':0},side)
+    lens=graphs['LenticularMaterial']
+    assert lens.evaluate('ViewIndex',fixtures={'view':(-.8,0.,.6)})<lens.evaluate('ViewIndex',fixtures={'view':(.8,0.,.6)})
+    # Exact Fresnel must vanish for index matching at EVERY incidence angle.
+    for index in [1.,1.1,1.5,1.8]:
+        for cosine in [0.,0.0001,0.01,0.2,0.7,1.]:
+            sine=math.sqrt(1-cosine*cosine)
+            fixture={'view':(sine,0.,cosine)}
+            actual=glass.evaluate('Fresnel',{'Refraction':index},fixture)
+            ct=math.sqrt(1-(sine/index)**2)
+            expected=0 if index==1 else 0.5*(((cosine-index*ct)/(cosine+index*ct))**2+((index*cosine-ct)/(index*cosine+ct))**2)
+            assert math.isclose(actual,expected,abs_tol=1e-8), 'Incorrect dielectric Fresnel'
+            ray=glass.evaluate('GlassRay',{'Refraction':index},fixture)
+            assert math.isclose(sum(c*c for c in ray),1,abs_tol=1e-8), 'Refraction lost unit length'
+    # Rotation pivots at UV center even when the second layer is tilted.
+    for rotation in [0,5,25]:
+        params={'Rotation':rotation};fixture={'position':(0.,0.,0.)}
+        assert math.isclose(moire.evaluate('RotatedU',params,fixture),.5)
+        assert math.isclose(moire.evaluate('RotatedV',params,fixture),.5)
+    # Compare the optimized two-fetch shader against the former four-fetch
+    # cascade, especially integer indices and narrow transitions.
+    palette=[(.9,.1,.2),(.1,.8,.3),(.2,.3,.9),(.8,.7,.1)]
+    def atlas_color(uv): return palette[int(uv[0]*2)+2*int(uv[1]*2)]
+    for width in [.05,.22,.9]:
+        for step in range(301):
+            view=step/100
+            expected=palette[0]
+            for i in range(1,4):
+                t=min(1,max(0,(view-(i-.5-width*.5))/width));t=t*t*(3-2*t)
+                expected=tuple(a*(1-t)+b*t for a,b in zip(expected,palette[i]))
+            actual=lens.evaluate('SelectedView',{'BlendWidth':width},{'LensView':view,'texture':atlas_color})
+            assert all(math.isclose(a,b,abs_tol=1e-8) for a,b in zip(actual,expected)), 'Two-fetch selection changed the view blend'
+    assert sum(kind=='ND_image_color3' for kind,_ in lens.nodes.values())==2
+    # Every atlas sample stays within its tile, including extreme grazing views.
+    for name in ['LenticularMaterial','ParallaxNebulaMaterial']:
+        graph=graphs[name]
+        for view in [(0.,0.,1.),(1.,0.,0.),(0.,1.,0.),(0.,0.,-1.)]:
+            for node,(kind,_) in graph.nodes.items():
+                if kind=='ND_image_color3':
+                    coords=graph.evaluate(node+'UV',fixtures={'view':view})
+                    assert all(0<c<1 for c in coords), 'Atlas sample escaped its padded domain'
+    nebula=graphs['ParallaxNebulaMaterial']
+    assert nebula.evaluate('Layer3EdgeMask',fixtures={'view':(1.,0.,0.)}) == 0, 'Oblique atlas edge stretched instead of fading'
     return count
 
 
@@ -247,7 +301,7 @@ def main():
         definitions={n.attrib['name']:{p.tag+':'+p.attrib['name']:p.attrib['type'] for p in n if p.tag in ['input','output']} for n in ET.parse(args.stdlib).getroot().findall('nodedef')}
         definitions={k:{p.replace('input:','inputs:').replace('output:','outputs:'):t for p,t in v.items()} for k,v in definitions.items()}
     graphs={p.stem:Graph(p) for p in sorted(MATERIALS.glob('*.usda'))}
-    assert len(graphs)==24
+    assert len(graphs)==31
     total=0
     for graph in graphs.values():
         total+=graph.validate(definitions)

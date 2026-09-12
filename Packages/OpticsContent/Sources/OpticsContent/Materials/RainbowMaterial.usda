@@ -1,0 +1,261 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "RainbowMaterial"
+    {
+        float inputs:LightAngle = 138
+        float inputs:Width = 0.35
+        float inputs:Gain = 3
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:RainbowLUT
+        token outputs:mtlx:surface.connect = </Root/RainbowMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/RainbowMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/RainbowMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/RainbowMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/RainbowMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/RainbowMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/RainbowMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/RainbowMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/RainbowMaterial.inputs:LightAngle>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "LightX"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/RainbowMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightZ"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/RainbowMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WorldLight"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/RainbowMaterial/LightX.outputs:out>
+            float inputs:in2 = 0.0
+            float inputs:in3.connect = </Root/RainbowMaterial/LightZ.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/RainbowMaterial/WorldLight.outputs:out>
+            string inputs:fromspace = "world"
+            string inputs:tospace = "object"
+            float3 outputs:out
+        }
+
+        def Shader "LightSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/RainbowMaterial/LightTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/RainbowMaterial/LightTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/RainbowMaterial/LightSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "LightLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/RainbowMaterial/LightSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Light"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/RainbowMaterial/LightTransform.outputs:out>
+            float inputs:in2.connect = </Root/RainbowMaterial/LightLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightView"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/RainbowMaterial/Light.outputs:out>
+            float3 inputs:in2.connect = </Root/RainbowMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NegativeLightView"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/RainbowMaterial/LightView.outputs:out>
+            float inputs:in2 = -1.0
+            float outputs:out
+        }
+
+        def Shader "AntisolarCos"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/RainbowMaterial/NegativeLightView.outputs:out>
+            float inputs:low = -1
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "RainbowAngle"
+        {
+            uniform token info:id = "ND_acos_float"
+            float inputs:in.connect = </Root/RainbowMaterial/AntisolarCos.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AngleCoordinate"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/RainbowMaterial/RainbowAngle.outputs:out>
+            float inputs:in2 = 3.141592654
+            float outputs:out
+        }
+
+        def Shader "WidthOffset"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/RainbowMaterial.inputs:Width>
+            float inputs:in2 = 0.2
+            float outputs:out
+        }
+
+        def Shader "WidthCoordinate"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/RainbowMaterial/WidthOffset.outputs:out>
+            float inputs:in2 = 1.2
+            float outputs:out
+        }
+
+        def Shader "RainbowUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/RainbowMaterial/AngleCoordinate.outputs:out>
+            float inputs:in2.connect = </Root/RainbowMaterial/WidthCoordinate.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Rainbow"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/RainbowMaterial.inputs:RainbowLUT>
+            float2 inputs:texcoord.connect = </Root/RainbowMaterial/RainbowUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "SkyAndRainbow"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/RainbowMaterial/Rainbow.outputs:out>
+            color3f inputs:in2 = (0.009, 0.016, 0.028)
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/RainbowMaterial/SkyAndRainbow.outputs:out>
+            float inputs:in2.connect = </Root/RainbowMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/RainbowMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/RainbowMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/RainbowMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/RainbowMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/RainbowMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/RainbowMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/RainbowMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/RainbowMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

@@ -18,7 +18,7 @@ struct ParameterPanelView: View {
 
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Color.clear.frame(height: 0).id("parameters.top")
                         if model.selectedEffect.isImplemented {
                             ForEach(model.settingsFor(model.selectedEffect)) { spec in
@@ -60,21 +60,22 @@ struct ParameterPanelView: View {
     }
 }
 
-private struct ParameterSliderRow: View {
+struct ParameterSliderRow: View {
     let spec: SettingSpec
+    var compact = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(spec.label)
-                    .font(.subheadline.weight(.medium))
+                    .font((compact ? Font.caption : Font.subheadline).weight(.medium))
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 Text(valueLabel(spec.get()))
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .font((compact ? Font.caption : Font.subheadline).monospacedDigit().weight(.semibold))
                     .foregroundStyle(.tint)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
                     .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
                     .fixedSize()
             }
@@ -85,12 +86,12 @@ private struct ParameterSliderRow: View {
             ) {
                 Text(spec.label)
             }
-            .controlSize(.large)
-            .frame(minHeight: 44)
+            .controlSize(.regular)
+            .frame(minHeight: compact ? 28 : 36)
             .accessibilityValue(valueLabel(spec.get()))
             .accessibilityIdentifier("parameter.\(spec.id)")
 
-            HStack {
+            if !compact { HStack {
                 Text(valueLabel(spec.range.lowerBound))
                 Spacer()
                 Text(valueLabel(spec.range.upperBound))
@@ -98,8 +99,9 @@ private struct ParameterSliderRow: View {
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.secondary)
             .accessibilityHidden(true)
+            }
         }
-        .padding(14)
+        .padding(compact ? 8 : 12)
         .background(
             spec.id == "intensity" ? Color.accentColor.opacity(0.09) : .white.opacity(0.045),
             in: RoundedRectangle(cornerRadius: 16)

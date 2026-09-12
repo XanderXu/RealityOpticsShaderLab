@@ -80,6 +80,49 @@ extension OpticsEffect {
             .init(name: "Transmission", label: "显示通道：反射 → 透射", range: 0...1, value: 0),
             .init(name: "Gain", label: "亮度", range: 0.2...3, value: 1),
         ]
+        case .gemFire: return [
+            .init(name: "FacetScale", label: "切面密度", range: 3...18, value: 8),
+            .init(name: "CutStrength", label: "切面倾角", range: 0...1, value: 0.55),
+            .init(name: "Dispersion", label: "色散强度", range: 0...0.25, value: 0.16),
+            .init(name: "InternalMix", label: "内部反射", range: 0...1, value: 0.65),
+            .init(name: "Gain", label: "亮度", range: 0.2...3, value: 1.2),
+        ]
+        case .absorbingGlass: return [
+            .init(name: "Thickness", label: "吸收厚度", range: 0...3, value: 0.85),
+            .init(name: "Tint", label: "吸收配色：青 → 琥珀", range: 0...1, value: 0.25),
+            .init(name: "Refraction", label: "折射率", range: 1...1.8, value: 1.5),
+            .init(name: "Gain", label: "亮度", range: 0.2...3, value: 1.2),
+        ]
+        case .lenticular: return [
+            .init(name: "ViewSpread", label: "视角切换灵敏度", range: 0.3...2, value: 1),
+            .init(name: "LensPitch", label: "柱镜条纹密度", range: 12...90, value: 42),
+            .init(name: "BlendWidth", label: "视图过渡宽度", range: 0.05...0.9, value: 0.22),
+            .init(name: "Gain", label: "亮度", range: 0.2...3, value: 1.2),
+        ]
+        case .moire: return [
+            .init(name: "Frequency", label: "条纹密度", range: 6...55, value: 24),
+            .init(name: "Mismatch", label: "双层频率差", range: 0.01...0.18, value: 0.055),
+            .init(name: "LayerGap", label: "层间视差", range: 0...0.25, value: 0.1),
+            .init(name: "Rotation", label: "第二层旋角（°）", range: 0...25, value: 5),
+            .init(name: "Gain", label: "亮度", range: 0.2...3, value: 1.2),
+        ]
+        case .parallaxNebula: return [
+            .init(name: "Depth", label: "内部深度", range: 0...0.65, value: 0.35),
+            .init(name: "Scale", label: "云层尺度", range: 0.4...1.4, value: 0.85),
+            .init(name: "Density", label: "云层遮挡", range: 0...1, value: 0.65),
+            .init(name: "Gain", label: "亮度", range: 0.2...4, value: 1.6),
+        ]
+        case .rainbow: return [
+            .init(name: "LightAngle", label: "光源方位（°）", range: 90...180, value: 138),
+            .init(name: "Width", label: "虹带展宽（°）", range: 0.2...1.4, value: 0.35),
+            .init(name: "Gain", label: "亮度", range: 0.2...6, value: 3),
+        ]
+        case .atmosphere: return [
+            .init(name: "LightAngle", label: "太阳方位（°）", range: 0...180, value: 70),
+            .init(name: "Density", label: "大气光学厚度", range: 0.1...3, value: 1),
+            .init(name: "Sunset", label: "日落偏移", range: -0.6...0.6, value: 0),
+            .init(name: "Gain", label: "亮度", range: 0.2...6, value: 2.5),
+        ]
         default: return []
         }
     }

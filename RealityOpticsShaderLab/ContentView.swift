@@ -61,18 +61,27 @@ struct ContentView: View {
     private var preview: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(model.selectedEffect.group.title + " · 实时预览")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(model.selectedEffect.menuTitle)
-                        .font(.title2.bold())
+                Label(model.selectedEffect.menuTitle, systemImage: model.selectedEffect.iconName)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 4)
+                Label(model.statusMessage == "Ready" ? "渲染就绪" : "准备中", systemImage:
+                        model.statusMessage == "Ready" ? "checkmark.circle.fill" : "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
+                    .fixedSize()
+                Button {
+                    model.isAnimating.toggle()
+                } label: {
+                    Label(model.isAnimating ? "暂停旋转" : "继续旋转",
+                          systemImage: model.isAnimating ? "pause.fill" : "play.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 28)
                 }
-                Spacer()
-                Image(systemName: model.selectedEffect.iconName)
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
+                .buttonStyle(.bordered)
+                .fixedSize()
+                .accessibilityIdentifier("preview.animation")
             }
             .padding(18)
 
@@ -100,26 +109,6 @@ struct ContentView: View {
 
             VStack(spacing: 12) {
                 PreviewControlsView()
-
-                HStack(spacing: 12) {
-                    Button {
-                        model.isAnimating.toggle()
-                    } label: {
-                        Label(
-                            model.isAnimating ? "暂停旋转" : "继续旋转",
-                            systemImage: model.isAnimating ? "pause.fill" : "play.fill"
-                        )
-                        .font(.subheadline.weight(.semibold))
-                        .frame(minHeight: 28)
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("preview.animation")
-                    Spacer(minLength: 0)
-                    Label(model.statusMessage == "Ready" ? "渲染就绪" : "准备中", systemImage:
-                            model.statusMessage == "Ready" ? "checkmark.circle.fill" : "info.circle")
-                        .font(.caption)
-                        .foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
-                }
 
                 if model.statusMessage != "Ready" {
                     Text(model.statusMessage)

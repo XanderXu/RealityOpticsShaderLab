@@ -1,0 +1,53 @@
+2026-09-12 07:46:20.454 RealityOpticsShaderLab[80333:20486163] Metal API Validation Enabled
+OPTICS_PERF LUT GPU film(ior: 1.333): 0.01148025 seconds
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.environment): 0.004127167 seconds
+OPTICS_PERF FIRST_READY gemFire: 1.978694959 seconds
+OPTICS_PERF SELECT gemFire: 0.631569083 seconds; templates=2, textures=2, textureBytes=786432
+OPTICS_AUDIT DEFAULT gemFire 6 parameters
+OPTICS_AUDIT MIN gemFire 6 parameters
+OPTICS_AUDIT MAX gemFire 6 parameters
+OPTICS_AUDIT CAPTURE gemFire-oblique
+OPTICS_AUDIT CAPTURE gemFire-rear
+OPTICS_PERF SELECT absorbingGlass: 0.223715083 seconds; templates=3, textures=2, textureBytes=786432
+OPTICS_AUDIT DEFAULT absorbingGlass 5 parameters
+OPTICS_AUDIT MIN absorbingGlass 5 parameters
+OPTICS_AUDIT MAX absorbingGlass 5 parameters
+OPTICS_AUDIT CAPTURE absorbingGlass-oblique
+OPTICS_AUDIT CAPTURE absorbingGlass-rear
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.views): 0.005514083 seconds
+OPTICS_PERF SELECT lenticular: 0.471872625 seconds; templates=4, textures=3, textureBytes=2883584
+OPTICS_AUDIT DEFAULT lenticular 5 parameters
+OPTICS_AUDIT MIN lenticular 5 parameters
+OPTICS_AUDIT MAX lenticular 5 parameters
+OPTICS_AUDIT CAPTURE lenticular-oblique
+OPTICS_AUDIT CAPTURE lenticular-rear
+OPTICS_PERF SELECT moire: 0.395185083 seconds; templates=5, textures=3, textureBytes=2883584
+OPTICS_AUDIT DEFAULT moire 6 parameters
+OPTICS_AUDIT MIN moire 6 parameters
+OPTICS_AUDIT MAX moire 6 parameters
+OPTICS_AUDIT CAPTURE moire-oblique
+OPTICS_AUDIT CAPTURE moire-rear
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.nebula): 0.004643625 seconds
+OPTICS_PERF SELECT parallaxNebula: 0.346713458 seconds; templates=6, textures=4, textureBytes=4980736
+OPTICS_AUDIT DEFAULT parallaxNebula 5 parameters
+OPTICS_AUDIT MIN parallaxNebula 5 parameters
+OPTICS_AUDIT MAX parallaxNebula 5 parameters
+OPTICS_AUDIT CAPTURE parallaxNebula-oblique
+OPTICS_AUDIT CAPTURE parallaxNebula-rear
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.rainbow): 0.007371125 seconds
+OPTICS_PERF SELECT rainbow: 0.192798208 seconds; templates=7, textures=5, textureBytes=5505024
+OPTICS_AUDIT DEFAULT rainbow 4 parameters
+OPTICS_AUDIT MIN rainbow 4 parameters
+OPTICS_AUDIT MAX rainbow 4 parameters
+OPTICS_AUDIT CAPTURE rainbow-oblique
+OPTICS_AUDIT CAPTURE rainbow-rear
+OPTICS_AUDIT CAPTURE rainbow-light
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.atmosphere): 0.023954542 seconds
+OPTICS_PERF SELECT atmosphere: 0.23272775 seconds; templates=8, textures=6, textureBytes=6029312
+OPTICS_AUDIT DEFAULT atmosphere 5 parameters
+OPTICS_AUDIT MIN atmosphere 5 parameters
+OPTICS_AUDIT MAX atmosphere 5 parameters
+OPTICS_AUDIT CAPTURE atmosphere-oblique
+OPTICS_AUDIT CAPTURE atmosphere-rear
+OPTICS_AUDIT CAPTURE atmosphere-light
+OPTICS_AUDIT PASS: 7 materials, default/min/max scenes, no binding failures

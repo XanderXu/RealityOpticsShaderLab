@@ -5,6 +5,9 @@ struct OpticsSceneView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        #if os(iOS)
+        MobileOpticsSceneView()
+        #else
         GeometryReader3D { geometry in
             RealityView { content in
                 // This closure must not READ any @Observable state: SwiftUI re-runs it
@@ -28,7 +31,10 @@ struct OpticsSceneView: View {
                     let identity = ObjectIdentifier(object)
                     guard model.isAnimating || lastObject != identity else { return }
                     lastObject = identity
-                    if model.isAnimating { spin += Float(event.deltaTime) }
+                    if model.isAnimating {
+                        // Bound the clock to one full turn to retain precision over long sessions.
+                        spin = (spin + Float(event.deltaTime)).truncatingRemainder(dividingBy: 8 * .pi)
+                    }
                     for child in root.children {
                         guard let shape = PreviewShape(rawValue: child.name) else { continue }
                         child.orientation = shape.orientation(at: spin)
@@ -60,5 +66,6 @@ struct OpticsSceneView: View {
         .onChange(of: model.previewGroup) { _, _ in
             model.syncSceneObjects()
         }
+        #endif
     }
 }

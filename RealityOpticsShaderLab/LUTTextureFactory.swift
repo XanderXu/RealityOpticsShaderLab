@@ -32,18 +32,23 @@ final class LUTTexture {
 final class LUTRenderer {
     private let device: MTLDevice
     private let queue: MTLCommandQueue
+    private let spectralConstants: MTLBuffer
     private let weights: MTLBuffer
     private let pipeline: MTLComputePipelineState?
 
     init() async throws {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
               let weights = device.makeBuffer(bytes: Spectrum.packedHalfRGBWeights,
-                length: Spectrum.packedHalfRGBWeights.count * 2, options: .storageModeShared) else {
+                length: Spectrum.packedHalfRGBWeights.count * 2, options: .storageModeShared),
+              let spectralConstants = device.makeBuffer(bytes: SpatialLookup.gpuSpectralConstants,
+                length: SpatialLookup.gpuSpectralConstants.count * MemoryLayout<SIMD4<Float>>.stride,
+                options: .storageModeShared) else {
             throw Self.failure("Metal unavailable")
         }
         self.device = device
         self.queue = queue
         self.weights = weights
+        self.spectralConstants = spectralConstants
         if let function = device.makeDefaultLibrary()?.makeFunction(name: "buildOpticsLUT") {
             do {
                 // Pipeline compilation may be slow on its first use; don't block UI.
@@ -74,6 +79,7 @@ final class LUTRenderer {
             encoder.setComputePipelineState(pipeline)
             encoder.setTexture(result.lowLevelTexture.replace(using: command), index: 0)
             encoder.setBuffer(weights, offset: 0, index: 0)
+            encoder.setBuffer(spectralConstants, offset: 0, index: 2)
             var parameters = key.gpuParameters
             encoder.setBytes(&parameters, length: MemoryLayout<OpticsGPUParameters>.stride, index: 1)
             let w = pipeline.threadExecutionWidth

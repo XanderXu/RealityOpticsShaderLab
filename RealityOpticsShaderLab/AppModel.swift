@@ -32,6 +32,13 @@ final class AppModel {
 
     var selectedEffect: OpticsEffect = .thinFilm
     var previewGroup: PreviewGroup = .basic
+    var previewShapes: [PreviewShape] {
+        #if os(iOS)
+        return PreviewShape.allCases
+        #else
+        return previewGroup.shapes
+        #endif
+    }
     var previewBaseColor: PreviewColor? {
         didSet {
             guard previewBaseColor != oldValue else { return }
@@ -538,6 +545,7 @@ final class AppModel {
             try await ensureLoaded(effect)
             try Task.checkCancellation()
             guard selectedEffect == effect else { return }
+            pushPreviewAppearance(for: effect)
             if effect == .thinFilm, appliedFilmIOR != soapIOR {
                 rebuildFilmLUT()
                 await rebuildTask?.value
@@ -619,11 +627,19 @@ final class AppModel {
             isAnimating = originalAnimation
         }
         isAnimating = false
+        let spatialAudit = ProcessInfo.processInfo.environment["OPTICS_AUDIT_SPATIAL"] == "1"
+        let spatialEffects = [OpticsEffectGroup.dispersion, .parallax, .atmospheric].flatMap(\.effects)
         let effects = ProcessInfo.processInfo.environment["OPTICS_AUDIT_ONLY_SELECTED"] == "1"
-            ? [originalEffect] : OpticsEffect.allCases
+            ? [originalEffect] : (spatialAudit ? spatialEffects : OpticsEffect.allCases)
         for effect in effects {
             selectedEffect = effect
             try await ensureLoaded(effect)
+            if spatialAudit {
+                syncSceneObjects()
+                for sample in sceneRoot?.children.map({ $0 }) ?? [] {
+                    if let shape = PreviewShape(rawValue: sample.name) { sample.orientation = shape.orientation(at: 0) }
+                }
+            }
             let specs = settingsFor(effect)
             let saved = specs.map { $0.get() }
             defer { for (spec, value) in zip(specs, saved) { spec.set(value) } }
@@ -639,8 +655,8 @@ final class AppModel {
                 }
                 // Allow the RealityView update and GPU shader pipeline to run.
                 try await Task.sleep(for: .seconds(1))
-                guard sceneRoot?.children.count == 2,
-                      previewGroup.shapes.allSatisfy({ sceneRoot?.findEntity(named: $0.rawValue) != nil }),
+                guard sceneRoot?.children.count == previewShapes.count,
+                      previewShapes.allSatisfy({ sceneRoot?.findEntity(named: $0.rawValue) != nil }),
                       material(for: effect) != nil, parameterErrors.isEmpty else {
                     throw NSError(domain: "OpticsAudit", code: 2,
                                   userInfo: [NSLocalizedDescriptionKey: "Scene/binding failed: \(effect.rawValue)"])
@@ -669,6 +685,31 @@ final class AppModel {
                 print("OPTICS_AUDIT CAPTURE \(name)")
                 fflush(stdout)
                 try await Task.sleep(for: .seconds(3))
+            }
+            if spatialAudit {
+                for (spec, value) in zip(specs, saved) { spec.set(value) }
+                let poses: [(String, Float)] = [("oblique", 0.9), ("rear", .pi)]
+                for (name, yaw) in poses {
+                    for sample in sceneRoot!.children {
+                        if let shape = PreviewShape(rawValue: sample.name) {
+                            sample.orientation = shape.orientation(at: yaw / 0.25)
+                        }
+                    }
+                    try await Task.sleep(for: .seconds(1))
+                    print("OPTICS_AUDIT CAPTURE \(effect.rawValue)-\(name)")
+                    fflush(stdout)
+                    try await Task.sleep(for: .seconds(3))
+                }
+                if effect == .rainbow || effect == .atmosphere {
+                    for sample in sceneRoot!.children {
+                        if let shape = PreviewShape(rawValue: sample.name) { sample.orientation = shape.orientation(at: 0) }
+                    }
+                    specs.first { $0.id == "LightAngle" }?.set(effect == .rainbow ? 129 : 105)
+                    try await Task.sleep(for: .seconds(1))
+                    print("OPTICS_AUDIT CAPTURE \(effect.rawValue)-light")
+                    fflush(stdout)
+                    try await Task.sleep(for: .seconds(3))
+                }
             }
         }
         await rebuildTask?.value
@@ -775,7 +816,8 @@ final class AppModel {
         let savedChannel = channel.get()
         try check(material(for: .dichroic)?.getParameter(name: "TransmissionLUT") == nil,
             "Dichroic retained a duplicate transmission lookup")
-        try check(resources.textureCount == resources.variableTextureCount + 9,
+        // Nine original fixed LUTs plus the five new immutable procedural/angular assets.
+        try check(resources.textureCount == resources.variableTextureCount + 9 + SpatialLookup.allCases.count,
             "Unexpected fixed lookup allocation")
         channel.set(1); channel.set(savedChannel)
         try check(resources.textureBuildCount == builds && resources.templateLoadCount == loads,
@@ -819,11 +861,12 @@ final class AppModel {
         func checkPair() throws {
             syncSceneObjects()
             syncSceneObjects() // Repeated updates must not add duplicate samples.
-            try check(root.children.count == 2, "Expected exactly two live samples")
-            for shape in previewGroup.shapes {
+            try check(root.children.count == previewShapes.count, "Incorrect number of live samples")
+            for shape in previewShapes {
                 let sample = root.children.first(where: { $0.name == shape.rawValue })
                 let material = sample?.components[ModelComponent.self]?.materials.first as? ShaderGraphMaterial
                 try check(material != nil, "Missing sample material: \(shape.rawValue)")
+                try check(material?.faceCulling == .some(.none), "Rotating samples must remain visible from behind")
                 try check(material?.getParameter(name: "BaseAmount") == .float(previewBaseColor == nil ? 0 : previewBaseAmount), "Stale sample base amount")
                 guard case .color(let actualColor) = material?.getParameter(name: "BaseColor"),
                       let components = actualColor.converted(to: PreviewColor.materialColorSpace, intent: .relativeColorimetric, options: nil)?.components else {
@@ -865,11 +908,17 @@ final class AppModel {
         }
         try check(parameterErrors.isEmpty, "Preview shader binding failed")
         try check(resources.templateCount == Set(OpticsEffect.allCases.map(\.templateName)).count, "Paired samples duplicated material templates")
-        print("OPTICS_PREVIEW_AUDIT bindings: \(OpticsEffect.allCases.count) effects / 2 groups / 9 colors / 3 amounts; two live samples; no color/group resource builds")
+        print("OPTICS_PREVIEW_AUDIT bindings: \(OpticsEffect.allCases.count) effects / 2 groups / \(PreviewColor.allCases.count) colors / 3 amounts; \(previewShapes.count) live samples; no color/group resource builds")
 
-        func capture(_ name: String) async throws {
+        func capture(_ name: String, rotationTime: Float = 0) async throws {
             await prepareSelectedEffect()
             try checkPair()
+            try await Task.sleep(for: .seconds(1))
+            // Animation is paused; explicitly inspect both sides of the thin samples.
+            for sample in root.children {
+                guard let shape = PreviewShape(rawValue: sample.name) else { continue }
+                sample.orientation = shape.orientation(at: rotationTime)
+            }
             try await Task.sleep(for: .seconds(1))
             print("OPTICS_PREVIEW_AUDIT CAPTURE \(name)")
             fflush(stdout)
@@ -879,16 +928,18 @@ final class AppModel {
         previewGroup = .basic
         previewBaseColor = nil
         try await capture("basic-original")
+        try await capture("basic-rear", rotationTime: 4 * .pi)
         previewBaseColor = .red
         setPreviewBaseAmount(0.35)
         try await capture("basic-red")
-        previewBaseColor = .gray
+        previewBaseColor = .white
         setPreviewBaseAmount(1)
-        try await capture("basic-gray-only")
+        try await capture("basic-white-only")
         selectedEffect = .grating
         previewGroup = .instruments
         previewBaseColor = nil
         try await capture("instruments-original")
+        try await capture("instruments-rear", rotationTime: 4 * .pi)
         previewBaseColor = .white
         setPreviewBaseAmount(0.35)
         try await capture("instruments-white")
@@ -899,14 +950,14 @@ final class AppModel {
 
     // MARK: - Scene object management
 
-    /// Both samples share the selected material and its LUTs; only two are live.
+    /// Samples share the selected material and its LUTs: four on iOS, two on visionOS.
     func syncSceneObjects() {
         guard let root = sceneRoot else { return }
         guard let material = material(for: selectedEffect) else {
             root.children.removeAll()
             return
         }
-        let shapes = previewGroup.shapes
+        let shapes = previewShapes
         for child in Array(root.children) where !shapes.contains(where: { $0.rawValue == child.name }) {
             child.removeFromParent()
         }
@@ -916,7 +967,11 @@ final class AppModel {
                     assign(material, to: current)
                 } else {
                     let object = try meshes.makeEntity(for: shape, material: material)
+                    #if os(iOS)
+                    object.position = SIMD3(index % 2 == 0 ? -0.17 : 0.17, index < 2 ? 0.15 : -0.15, 0)
+                    #else
                     object.position = SIMD3(index == 0 ? -0.17 : 0.17, 0, 0)
+                    #endif
                     root.addChild(object)
                 }
             }

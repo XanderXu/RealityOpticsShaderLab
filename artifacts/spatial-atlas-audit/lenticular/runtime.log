@@ -1,0 +1,10 @@
+2026-09-12 07:50:45.424 RealityOpticsShaderLab[82077:20498496] Metal API Validation Enabled
+OPTICS_PERF LUT GPU spatial(OpticsPhysics.SpatialLookup.views): 0.030803708 seconds
+OPTICS_PERF FIRST_READY lenticular: 1.727463792 seconds
+OPTICS_PERF SELECT lenticular: 1.17392675 seconds; templates=1, textures=1, textureBytes=2097152
+OPTICS_AUDIT DEFAULT lenticular 5 parameters
+OPTICS_AUDIT MIN lenticular 5 parameters
+OPTICS_AUDIT MAX lenticular 5 parameters
+OPTICS_AUDIT CAPTURE lenticular-oblique
+OPTICS_AUDIT CAPTURE lenticular-rear
+OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures

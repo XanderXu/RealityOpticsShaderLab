@@ -17,9 +17,13 @@ struct VerifyCompute {
         precondition(MemoryLayout<OpticsGPUParameters>.stride == 16)
         let weights = device.makeBuffer(bytes: Spectrum.packedHalfRGBWeights,
             length: Spectrum.packedHalfRGBWeights.count * 2, options: .storageModeShared)!
+        let spectralConstants = device.makeBuffer(bytes: SpatialLookup.gpuSpectralConstants,
+            length: SpatialLookup.gpuSpectralConstants.count * MemoryLayout<SIMD4<Float>>.stride,
+            options: .storageModeShared)!
         let keys: [OpticsLUT] = [.film(ior: 1.333), .film(ior: 1.2), .film(ior: 1.45),
                                  .morpho, .nacre, .grating, .birefringence, .newton]
             + LayeredFilm.allCases.map { .layered($0) }
+            + SpatialLookup.allCases.map { .spatial($0) }
         // Odd dimensions exercise padded edge groups and the kernel's bounds check.
         let cases = keys.map { (key: $0, width: $0.width, height: $0.height) }
             + [(key: OpticsLUT.film(ior: 1.333), width: 257, height: 129)]
@@ -35,6 +39,7 @@ struct VerifyCompute {
             encoder.setComputePipelineState(pipeline)
             encoder.setTexture(texture, index: 0)
             encoder.setBuffer(weights, offset: 0, index: 0)
+            encoder.setBuffer(spectralConstants, offset: 0, index: 2)
             var parameters = key.gpuParameters
             encoder.setBytes(&parameters, length: MemoryLayout<OpticsGPUParameters>.stride, index: 1)
             let w = pipeline.threadExecutionWidth

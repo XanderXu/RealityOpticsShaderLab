@@ -4,6 +4,13 @@ import SwiftUI
 /// All catalog entries are wired up. Mechanisms distinguish spectral models from
 /// illustrative approximations so the UI does not imply a full physical solver.
 enum OpticsEffect: String, CaseIterable, Identifiable {
+    case gemFire
+    case absorbingGlass
+    case lenticular
+    case moire
+    case parallaxNebula
+    case rainbow
+    case atmosphere
     case thinFilm
     case grating
     case nacre
@@ -46,6 +53,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .gemFire: return "宝石火彩"
+        case .absorbingGlass: return "吸收玻璃"
+        case .lenticular: return "柱镜变图"
+        case .moire: return "彩色莫尔纹"
+        case .parallaxNebula: return "视差星云"
+        case .rainbow: return "雨虹与双虹"
+        case .atmosphere: return "大气霞光"
         case .thinFilm: return "薄膜干涉 · 肥皂泡（Thin-Film Interference）"
         case .grating: return "衍射光栅 · CD 光盘（Diffraction Grating）"
         case .nacre: return "珍珠母/珠光（Nacre, Pearlescence）"
@@ -80,6 +94,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     /// Short label for the picker menu.
     var menuTitle: String {
         switch self {
+        case .gemFire: return "宝石火彩"
+        case .absorbingGlass: return "吸收玻璃"
+        case .lenticular: return "柱镜变图"
+        case .moire: return "彩色莫尔纹"
+        case .parallaxNebula: return "视差星云"
+        case .rainbow: return "雨虹与双虹"
+        case .atmosphere: return "大气霞光"
         case .thinFilm: return "薄膜干涉"
         case .grating: return "衍射光栅"
         case .nacre: return "珍珠母"
@@ -114,6 +135,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     /// SF Symbol used on the effect card.
     var iconName: String {
         switch self {
+        case .gemFire: return "diamond.inset.filled"
+        case .absorbingGlass: return "drop.halffull"
+        case .lenticular: return "rectangle.on.rectangle.angled"
+        case .moire: return "circle.hexagongrid"
+        case .parallaxNebula: return "sparkles.rectangle.stack"
+        case .rainbow: return "rainbow"
+        case .atmosphere: return "globe.americas.fill"
         case .thinFilm: return "circle.dashed"
         case .grating: return "opticaldisc"
         case .nacre: return "circle.lefthalf.filled"
@@ -148,6 +176,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     /// What the viewer sees in the real phenomenon.
     var subtitle: String {
         switch self {
+        case .gemFire: return "切面中的彩色闪光随观察方向切换"
+        case .absorbingGlass: return "厚度与观察角度共同改变玻璃透射色"
+        case .lenticular: return "左右观察时切换四幅彩色图案"
+        case .moire: return "双层条纹因视差产生移动的彩色波纹"
+        case .parallaxNebula: return "多层彩云与星点随着视点移动产生深度"
+        case .rainbow: return "反太阳方向出现主虹及颜色反转的副虹"
+        case .atmosphere: return "球体边缘的蓝色大气与日落橙红渐变"
         case .thinFilm:
             return "肥皂泡/油膜的彩虹色，随膜厚与视角变化（已实现）"
         case .grating:
@@ -198,6 +233,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     /// Actual implemented model, including its approximation limits.
     var mechanism: String {
         switch self {
+        case .gemFire: return "以固定环境图、三波段折射和一次内部反射近似宝石火彩；切面由程序法线模拟，不追踪真实几何内部光路或现实背景"
+        case .absorbingGlass: return "有限平板光程与 RGB Beer–Lambert 吸收，叠加 Schlick 表面反射；背景为预制环境，非现实透视画面的折射，厚度由参数指定"
+        case .lenticular: return "物体空间观察斜率选择四视图图集；柱镜条带扰动视图索引。图集由 Compute 一次生成，属于柱镜选图近似"
+        case .moire: return "计算两层光栅的相位差，保留低频拍频并映射到三色通道；以解析低通代替易闪烁的亚像素混叠，层距为零时视差消失"
+        case .parallaxNebula: return "四层 Compute 生成的纹理按固定深度偏移并从后向前合成；使用有界视差和亮度遮挡，无屏幕后期，也不是完整体积散射"
+        case .rainbow: return "用色散水滴的驻定偏向角生成 81 波长角度 LUT；主虹和副虹采用高斯展宽及近似强度，非完整 Mie 散射。移动视点或调整光源才能改变虹带位置"
+        case .atmosphere: return "解析球壳视线长度与光谱 Rayleigh 单次散射 LUT，结合太阳方向和近似日落衰减；在模型表面显示，不生成真实外部大气体积"
         case .thinFilm:
             return "无吸收、无色散的三介质 Fresnel + Airy 光谱积分；CIE 1931 / D65 转线性 RGB，膜厚按高斯分布平均"
         case .grating:
@@ -263,10 +305,13 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 }
 
 enum OpticsEffectGroup: String, CaseIterable, Identifiable {
-    case films, structural, softGlow, directional, polarization, diffraction
+    case films, structural, softGlow, directional, polarization, diffraction, dispersion, parallax, atmospheric
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .dispersion: return "色散与吸收"
+        case .parallax: return "视差与叠层"
+        case .atmospheric: return "大气光学"
         case .films: return "薄膜与镀膜"
         case .structural: return "结构色与晕彩"
         case .softGlow: return "珠光与柔光"
@@ -277,6 +322,9 @@ enum OpticsEffectGroup: String, CaseIterable, Identifiable {
     }
     var effects: [OpticsEffect] {
         switch self {
+        case .dispersion: return [.gemFire, .absorbingGlass]
+        case .parallax: return [.lenticular, .moire, .parallaxNebula]
+        case .atmospheric: return [.rainbow, .atmosphere]
         case .films: return [.thinFilm, .oilFilm, .titanium, .lensCoating, .dichroic, .newton, .dragonfly]
         case .structural: return [.opal, .labradorite, .morpho, .beetle, .feather, .chameleon]
         case .softGlow: return [.nacre, .pearl, .moonstone]

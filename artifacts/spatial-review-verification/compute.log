@@ -1,0 +1,23 @@
+2026-09-12 08:00:43.248 verify[84248:20516230] Metal API Validation Enabled
+2026-09-12 08:00:43.248 verify[84248:20516230] Metal GPU Validation Enabled
+PASS film(ior: 1.333) 256x256: max=0.0009765625, RMSE=5.438980574738084e-05, CPU=0.207461125 seconds, GPU submission+wait=0.010950333 seconds
+PASS film(ior: 1.2) 256x256: max=0.0009765625, RMSE=4.904753935592841e-05, CPU=0.205005541 seconds, GPU submission+wait=0.005162083 seconds
+PASS film(ior: 1.45) 256x256: max=0.0009765625, RMSE=5.596027105400694e-05, CPU=0.208422667 seconds, GPU submission+wait=0.00779675 seconds
+PASS morpho 256x256: max=0.0009765625, RMSE=5.6963717551990695e-05, CPU=0.208230792 seconds, GPU submission+wait=0.009870958 seconds
+PASS nacre 256x256: max=0.00048828125, RMSE=5.868068448933988e-05, CPU=0.647098458 seconds, GPU submission+wait=0.012461583 seconds
+PASS grating 256x128: max=0.00024414062, RMSE=1.2096606963457492e-05, CPU=0.019899833 seconds, GPU submission+wait=0.001138125 seconds
+PASS birefringence 1024x1: max=0.0009765625, RMSE=8.766826309014039e-05, CPU=0.000649583 seconds, GPU submission+wait=0.000687166 seconds
+PASS newton 256x512: max=0.00048828125, RMSE=5.642661806453625e-05, CPU=0.102671916 seconds, GPU submission+wait=0.00378925 seconds
+PASS layered(verify.LayeredFilm.oil) 256x256: max=0.00048828125, RMSE=4.479020039358105e-05, CPU=1.364485958 seconds, GPU submission+wait=0.001766459 seconds
+PASS layered(verify.LayeredFilm.titanium) 256x256: max=0.00048828125, RMSE=7.817668881975539e-05, CPU=1.347736791 seconds, GPU submission+wait=0.004123084 seconds
+PASS layered(verify.LayeredFilm.coating) 256x256: max=0.00048828125, RMSE=4.379489554312226e-05, CPU=1.368628125 seconds, GPU submission+wait=0.005241125 seconds
+PASS single-LUT transmission vs independent integration: max=0.00050115585, RMSE=0.0001571801616840742
+PASS layered(verify.LayeredFilm.dichroic) 256x256: max=0.00048828125, RMSE=8.511693662938549e-05, CPU=2.383240083 seconds, GPU submission+wait=0.004503166 seconds
+PASS layered(verify.LayeredFilm.dichroicTransmission) 256x256: max=0.0009765625, RMSE=7.795918167331745e-05, CPU=2.385448625 seconds, GPU submission+wait=0.004611 seconds
+PASS spatial(verify.SpatialLookup.environment) 256x128: max=0.001953125, RMSE=1.5849905036161604e-05, CPU=0.001567542 seconds, GPU submission+wait=0.002591083 seconds
+PASS spatial(verify.SpatialLookup.views) 512x512: max=0.00048828125, RMSE=6.260353025167734e-06, CPU=0.007031625 seconds, GPU submission+wait=0.000725875 seconds
+PASS spatial(verify.SpatialLookup.nebula) 512x512: max=0.00048828125, RMSE=4.491438419950623e-06, CPU=0.019830584 seconds, GPU submission+wait=0.001083833 seconds
+PASS spatial(verify.SpatialLookup.rainbow) 1024x64: max=0.0009765625, RMSE=1.4102834701321426e-05, CPU=0.028808292 seconds, GPU submission+wait=0.0011825 seconds
+PASS spatial(verify.SpatialLookup.atmosphere) 256x256: max=0.00048828125, RMSE=3.175543723762251e-05, CPU=0.029993 seconds, GPU submission+wait=0.001270583 seconds
+PASS film(ior: 1.333) 257x129: max=0.0009765625, RMSE=5.279843394081129e-05, CPU=0.105437125 seconds, GPU submission+wait=0.0034145 seconds
+PASS all full-resolution LUTs and padded edge groups; half weights/storage, float optical arithmetic; verified vertical orientation

@@ -85,14 +85,70 @@ inline float stackReflectance(thread const PreparedStack &stack, float lambda) {
     return clamp((dot(rs,rs)+dot(rp,rp))*0.5f,0.0f,1.0f);
 }
 
+// Immutable procedural atlases and angular LUTs (10...14). All UVs use the
+// same flipped-row convention as spectral tables and the CPU fallback.
+inline float3 spatialPalette(float t) {
+    return 0.52f + 0.48f * cos(float3(t, t+2.1f, t+4.2f));
+}
+inline float3 spatialColor(uint kind, float u, float v) {
+    if (kind==10) {
+        float a=2*M_PI_F*u;
+        float bands=pow(0.5f+0.5f*cos(6*a+2*sin(v*8)),12.0f);
+        float lights=pow(0.5f+0.5f*cos(3*a-1),40.0f)*exp(-pow((v-0.7f)*7,2.0f));
+        return float3(0.03f+1.8f*lights+0.8f*pow(bands,3.0f))+spatialPalette(a+v*5)*(0.06f+0.4f*bands);
+    }
+    uint tx=min(uint(u*2),1u), ty=min(uint(v*2),1u);
+    float tile=float(tx+2*ty), x=(u*2-float(tx))*2-1, y=(v*2-float(ty))*2-1;
+    if (kind==11) {
+        float r=sqrt(x*x+y*y), angle=atan2(y,x), pattern;
+        switch (uint(tile)) {
+            case 0: pattern=cos(r*18); break;
+            case 1: pattern=cos(5*angle+r*9); break;
+            case 2: pattern=cos(x*13)*cos(y*13); break;
+            default: pattern=cos(8*angle-r*14); break;
+        }
+        return spatialPalette(tile*1.5f+r*3)*(0.18f+0.82f*pow(0.5f+0.5f*pattern,2.0f));
+    }
+    float warp=sin(x*4+tile)+cos(y*5-tile);
+    float field=sin(x*6+warp+tile*2)*cos(y*7-warp);
+    float fine=sin(x*19+y*11+tile)*cos(y*23-x*9);
+    float cloud=pow(max(0.0f,0.38f+0.42f*field+0.20f*fine),3.0f);
+    float stars=pow(max(0.0f,sin(x*49+tile)*cos(y*53-tile)),70.0f);
+    float t=0.5f+0.5f*sin(tile*1.6f+field*2+x);
+    float3 tint=float3(0.12f,0.04f,0.65f)*(1-t)+float3(0.7f,0.03f,0.24f)*t+float3(0.03f,0.22f,0.22f)*max(field,0.0f);
+    return tint*cloud+float3(stars*0.8f);
+}
+
 kernel void buildOpticsLUT(texture2d<half, access::write> output [[texture(0)]],
                            constant half4 *colorWeights [[buffer(0)]],
                            constant OpticsParameters &p [[buffer(1)]],
+                           constant float4 *spectralConstants [[buffer(2)]],
                            uint2 gid [[thread_position_in_grid]]) {
     uint width = output.get_width(), height = output.get_height();
     if (gid.x >= width || gid.y >= height) return;
     float u = (float(gid.x) + 0.5f) / float(width);
     float v = (float(gid.y) + 0.5f) / float(height);
+    if (p.kind >= 10) {
+        float3 color=0;
+        if (p.kind == 13) {
+            float angle=u*M_PI_F, inverseSigma=1/((0.2f+1.2f*v)*M_PI_F/180);
+            for (uint i=0; i<81; ++i) {
+                float2 offsets=(angle-spectralConstants[i].xy)*float2(inverseSigma,inverseSigma/1.3f);
+                float2 lobes=exp(-0.5f*offsets*offsets);
+                color += float3(colorWeights[i].xyz)*dot(lobes,float2(1,0.38f));
+            }
+        } else if (p.kind == 14) {
+            float mu=2*u-1, sunPath=1/(0.04f+max(mu,0.0f));
+            float day=exp(min(mu,0.0f)*16), depth=v*10;
+            for (uint i=0; i<81; ++i) {
+                float beta=spectralConstants[i].z;
+                float value=(1-exp(-beta*depth))*exp(-beta*sunPath)*day;
+                color += float3(colorWeights[i].xyz)*value;
+            }
+        } else color=spatialColor(p.kind,u,v);
+        output.write(half4(half3(clamp(color,0.0f,4.0f)),half(1)),uint2(gid.x,height-1-gid.y));
+        return;
+    }
     float opticalCos = 0;
     float2 rSquared = 0;
     if (p.kind == 0 || p.kind == 1) {

@@ -1,194 +1,46 @@
-# RealityOpticsShaderLab — 用 RealityKit ShaderGraph + LowLevelTexture 实现波动光学效果库
+# RealityOpticsShaderLab
 
-一个 visionOS 演示 App，实时呈现 **28 种光学与结构色**效果，通过效果库切换，每个效果带独立参数面板。薄膜、光栅与偏振延迟使用光谱模型，生物结构色等采用注明限制的外观近似。
+支持 visionOS 与 iOS 18+、基于 RealityKit ShaderGraph 与 Metal Compute 的光学效果库，实时展示 35 种光学与结构色效果。手机使用 `RealityOpticsShaderLab-iOS` Scheme，见 [iOS 运行说明](docs/iOS.md)。
 
-2026-09-11 已完成全量计算与材质审查，修复坐标系、标准色度数据、牛顿环介质、白光相位、边界采样和数值稳定性等问题。详见 [逐项审查与验证记录](docs/SHADER_AUDIT.md)。
+## 效果清单
 
-性能版已改为按选中效果懒加载、GPU Compute 生成 LUT 和共享材质实例；模拟器首个效果约 1.3 秒就绪。详见 [性能改动、实测与复现](docs/PERFORMANCE.md)。
+| 分组 | 效果 |
+|---|---|
+| 薄膜与镀膜（7） | 薄膜干涉／肥皂泡、油膜、阳极氧化钛、镜头镀膜、二向色玻璃、牛顿环、蜻蜓翅膀 |
+| 结构色与晕彩（6） | 欧泊、拉长石、闪蝶翅膀、吉丁虫鞘翅、孔雀羽、变色龙皮肤 |
+| 珠光与柔光（3） | 珍珠母、珍珠、月光石 |
+| 定向反光（4） | 猫眼效应、星光宝石、日光石、逆反射材料 |
+| 偏振与体色（5） | 双折射／光弹性、液晶旋光、圆偏振金龟、变石效应、多色性 |
+| 衍射与散斑（3） | 衍射光栅／CD、彩虹全息、激光散斑 |
+| 色散与吸收（2） | 宝石火彩、吸收玻璃 |
+| 视差与叠层（3） | 柱镜变图、彩色莫尔纹、视差星云 |
+| 大气光学（2） | 雨虹与双虹、大气霞光 |
 
-## 效果目录（全部已实现）
+薄膜、光栅和偏振延迟采用光谱模型；生物结构色、宝石柔光等结合程序纹理与外观近似，主要用于观察效果与参数变化。
 
-效果按六组组织：薄膜与镀膜、结构色与晕彩、珠光与柔光、定向反光、偏振与体色、衍射与散斑。新增猫眼、星光宝石、月光石、拉长石、日光石、变石、多色性、二向色玻璃、逆反射、油膜、阳极氧化钛、镜头镀膜。完整分组、操作方法及物理近似边界见 [新增效果说明](docs/EXTENDED_EFFECTS.md)。
-
-以下为原有 16 项的模型说明：
-
-| 效果 | 模型 / 近似 | 实现 | 适合观察的几何 |
-|---|---|---|---|
-| 薄膜干涉·肥皂泡 | Fresnel + Airy 级数光谱积分 | 厚度×视角 LUT | 球 |
-| 衍射光栅·CD | sinθi−sinθo = mλ/d 多阶合成 | sin差×密度 LUT | 微锥盘 |
-| 珍珠母/珠光 | 三层板片膜平均 + σd=45 模糊 + 降饱和 | nacreLUT | 球 |
-| 欧泊 play-of-color | Worley 距离场扰动的变彩近似 | worleynoise 扰动 LUT 坐标 | 球 |
-| 双折射/光弹性 | 正交偏振片 T=sin²(δ·λref/2λ) | 相位差 LUT | 塑料尺盒 |
-| 激光散斑 | 物体空间视线偏移 + 3D cellnoise + 阈值 | 纯图内（无 LUT） | 球 |
-| 闪蝶翅膀 | 等效几丁质 216nm 膜，约 449nm 可见反射峰 | chitin filmLUT + abs(NdotV) | 翅面 |
-| 吉丁虫鞘翅 | 绿带薄膜 + 视角彩虹条带混合 | 双 LUT mix | 椭球 |
-| 蜂鸟/孔雀羽 | 薄膜蓝绿带 + 羽枝条纹 + glitter | filmLUT + sin 条纹 + cellnoise 星点 | 羽面 |
-| 彩虹全息图 | 随视角滑动的分行衍射条纹 | gratingLUT + 行相位偏移 | 卡片 |
-| 液晶旋光 | 像素晶域 + 斜视透过率与泄漏色 | cellnoise 像素 + 视角调色 | 面板 |
-| 牛顿环 | 玻璃—空气—玻璃，空气隙按半径平方变化 | 专用 newtonLUT + r² | 圆形透明裁切平面 |
-| 正圆珍珠 | 定向珠光 + 曲率体色渐变 | nacreLUT + 曲率与体色 | 球 |
-| 蜻蜓翅膀 | 超薄膜干涉 + 半透明翅膜与脉络 | filmLUT + 脉络网格 | 翅面 |
-| 变色龙皮肤 | 晶域主动变色 + 视角色相偏移 | gratingLUT + 晶域相位 | 球 |
-| 圆偏振金龟子 | 左右旋色支与检偏器混合 | 双薄膜采样 + R→L 示意混合 | 椭球 |
-
-最近一次复查修复了背面入射、日光石随机分布、多色性晶轴控制及验证盲点，并将新增膜类改为单次纹理采样；详见 [复查与性能修复](docs/REVIEW_FIXES.md)。
-
-## 界面布局
-
-窗口默认 1280 × 820，最小 1060 × 680，采用三栏布局：
-
-- **左侧效果库（242 pt）**：28 种效果按六组双列排列，组标题固定，支持名称/英文标识/组名搜索，纵向滚动；选中项带蓝色描边和勾选标记。
-- **中间实时预览**：默认并排显示球体＋平面，“第二组”开关换为尺子＋光盘，总共四种形状。两个模型共享当前材质和参数；按两件模型的旋转包络统一缩放，避免侵入控件。球体自转，薄片与光盘小幅摆动以保持正面可见。底部固定预览设置、旋转开关与渲染状态。
-- **右侧参数面板（330 pt）**：独立纵向滚动，每个参数以卡片展示名称、实时数值、滑杆和上下限；原生滑杆至少保留 44 pt 高度。切换效果回到参数顶部，已调整的值继续由 AppModel 保留。
-
-效果说明位于参数末尾的折叠区，优先把操作空间留给调参。窗口最小尺寸由 `.windowResizability(.contentMinSize)` 约束，缩小时两侧通过滚动容纳内容。
-
-**材质基础色**：点击预览下方的颜色按钮，打开双行色板；提供黑、白、18% 灰、红、绿、蓝、青、品红、黄，以及“原始效果”。选色后默认以 35% 占比与光学颜色混合，可调到 100% 检查纯底色。“原始效果”恢复原来的光学颜色。颜色作用于模型材质，透明度及裁切仍由各效果决定；基础色与分组在切换效果时保留。
-
-底色混合在线性 sRGB 中进行：`mix(opticalColor, BaseColor, BaseAmount)`，再按原有 Intensity 控制效果强度；Intensity=0 显示所选基础色。这是用于外观比较的颜色混合，不是新增一套有色基底光谱模型。每个图只增加一个 mix 节点，不增加纹理或 LUT。
-
-新版模拟器截图：[球体＋平面](artifacts/preview-audit/basic-red.jpg)、[尺子＋光盘](artifacts/preview-audit/instruments-white.jpg)。
-
-上一轮预览验证（扩展前）：Debug／Release 构建通过；开启 Metal API Validation，16 个效果 × 两组模型 × 九种底色 × 三个占比的绑定检查通过；16 张材质图共 574 个节点通过静态与颜色混合检查。记录见 [预览运行日志](artifacts/preview-audit/runtime.log) 和 [材质检查日志](artifacts/preview-audit/material-validation.log)。
-
-## 架构
+## 整体渲染逻辑
 
 ```text
-选择效果 → AppModel.ensureLoaded（合并并发请求）
-             ├─ OpticsResources：按需加载 ShaderGraph 模板 / 复制参数实例
-             └─ OpticsLUT：只请求该效果依赖的 LUT
-                      ↓
-               LUTRenderer + OpticsLUT.metal
-               81 波长光谱积分 → LowLevelTexture.replace(using:)
-                      ↓
-               RGBA16F TextureResource（共享缓存）
-                      ↓
-               ShaderGraph：视角/厚度查表 → Unlit
+选择效果 → AppModel 管理参数与加载状态
+             ↓
+        OpticsResources 按需取得材质模板及依赖
+             ├─ 光谱效果：Metal Compute → LowLevelTexture → 共享 LUT
+             └─ 程序效果：ShaderGraph 内直接计算
+             ↓
+        ShaderGraph 根据视角、法线、厚度与纹理计算光学颜色
+             ↓
+        在线性 sRGB 中混合基础色、应用强度与透明度 → Unlit 输出
+             ↓
+        RealityKit 预览：visionOS 双模型，iOS 四模型，共享材质与 LUT
 ```
 
-正常路径在 GPU 生成 LUT：颜色权重使用 half4，光学相位、Fresnel 和光谱累加保留 float32，结果存为 RGBA16F。CPU 物理包作为独立数值参考及 Compute pipeline 不可用时的回退。GPU 完成以异步回调通知，不在主线程同步等待。
+LUT 将昂贵的光谱积分预计算为查找表：按 81 个波长采样，结合 CIE 1931 与 D65 转换为线性 RGB。运行时根据厚度、入射／观察角或相位差查表；视线相关变化仍逐帧计算。宝石与玻璃采样预制环境；柱镜与星云使用 Compute 生成的四视图／四层图集；雨虹与大气按光源、视线角度查询光谱表，不依赖屏幕空间后期。Compute pipeline 不可用时，使用后台 CPU 计算并通过异步 blit 上传。
 
-仅在首次访问效果时加载模板和依赖。薄膜、珍珠母、闪蝶使用同一个 ShaderGraph 模板的参数实例，猫眼/星光和新增膜类也分别共享模板，28 种效果共 22 个运行时模板。光栅及几丁质等 LUT 在多个效果间共享。IOR 滑杆以 120 ms 合并连续输入，最多缓存 4 个 IOR 版本，旧请求不能覆盖最新值。其他效果的调参只改材质参数。
+## 性能优化
 
-场景同时保留两个实体，复用球、平面、尺子、光盘四种网格资源；两件模型共享同一个材质定义和 LUT。切换分组不加载材质，切换底色只写参数；暂停时跳过重复的逐帧姿态写入。视线相关的颜色计算仍在 ShaderGraph 中实时执行。
-
-## 目录
-
-```
-RealityOpticsShaderLab/
-├── RealityOpticsShaderLab.xcodeproj  # visionOS 2.0+，objectVersion 77（文件系统同步组）
-├── RealityOpticsShaderLab/           # App：RealityView 场景 + 控制面板 + LUT 纹理工厂
-│   ├── AppModel.swift             # 参数状态、按需加载、取消与热更新
-│   ├── OpticsResources.swift      # LUT / 材质模板缓存、参数实例
-│   ├── OpticsLUT.metal            # GPU 光谱积分，half 权重 / float 相位
-│   ├── OpticsMeshes.swift         # 四种共享网格资源
-│   ├── ContentView.swift          # 三栏工作区、预览标题、旋转控制与状态
-│   ├── PreviewControlsView.swift  # 两组模型切换、基础色色板与占比
-│   ├── PreviewSettings.swift      # 四种形状、摆动姿态与线性 sRGB 基础色
-│   ├── EffectLibraryView.swift    # 分组搜索、双列效果库
-│   ├── ParameterPanelView.swift   # 独立滚动参数卡片与折叠说明
-│   ├── ExtendedEffectControls.swift # 新增 12 项的参数范围与默认值
-│   ├── OpticsEffect.swift         # 28 种效果的分组、名称、图标与机制说明
-│   ├── OpticsSceneView.swift      # 自适应 RealityView、转台式自转
-│   ├── DiscMesh.swift             # 微锥形 CD 网格（UV 副切线提供径向，绕序与法线一致）
-│   └── LUTTextureFactory.swift    # GPU Compute → LowLevelTexture / CPU 回退
-├── Packages/OpticsPhysics/        # 纯 Swift 物理包（swift test 可在 macOS 直接跑）
-│   ├── Spectrum.swift             # 官方 CIE CMF / D65 / 预计算线性 RGB 积分权重
-│   ├── LayeredFilm.swift          # 非对称膜、金属基底与多层膜的独立复数参考
-│   ├── ThinFilm.swift             # 三层膜反射率光谱
-│   ├── DiffractionGrating.swift   # 光栅方程 + 阶数合成
-│   ├── LUTBuilder.swift           # CPU 参考：光谱 LUT + Float16
-│   └── OpticsLUT.swift             # 缓存键、尺寸、GPU 参数和 CPU 参考入口
-├── Packages/OpticsContent/        # 材质包（.usda 以松散资源随 bundle 发布）
-│   └── Materials/*.usda          # 24 份材质图，运行时使用 22 份
-├── Scripts/                       # 材质图检查与模拟器自动截图
-├── docs/SHADER_AUDIT.md            # 全量修复说明与验证边界
-└── artifacts/                     # 模拟器验收截图与运行日志
-```
-
-## 物理要点
-
-**薄膜干涉**（肥皂泡 = air/soap(n≈1.333)/air）：
-- 相位差 `δ = 4π·n₂·d·cosθ₂ / λ`，Fresnel 振幅的符号自动携带 π 半波损失
-- 反射率 `R(λ) = |(r₁₂ + r₂₃e^{-iδ}) / (1 + r₁₂r₂₃e^{-iδ})|²`，s/p 偏振取平均
-- 厚度方向按 N(d, σd=15nm) 数值积分抗混叠（Belcour & Barla 2017 思路）
-- LUT：U = cosθ ∈ [0,1]，V = 厚度 ∈ [0, 1200nm]，256×256 RGBA16F
-
-**衍射光栅**（CD ≈ 625 线/mm）：
-- 光栅方程 `sinθᵢ − sinθₒ = mλ/d`，m = ±1, ±2，按 1/m² 加权
-- LUT：U = (sinθᵢ − sinθₒ + 2)/4，V = 密度 300–2000 线/mm，256×128
-- CPU 的 `sinIn/sinOut` 使用传播方向分量；图内 L、V 均指向表面外侧，因此用 `(L+V)·P` 查表（阶数正负对称）
-- 图内以入射余弦调节衍射亮度，另加微弱零级镜面；不再用窄镜面瓣压掉有效衍射色
-- 高斯谱带和阶次权重是简化效率模型，不等同于真实光栅的 blaze/偏振响应
-
-## 构建与运行
-
-```bash
-# 物理单测（41 个，host 直接跑）
-swift test --package-path Packages/OpticsPhysics -c release
-
-# 24 份材质图的连接、类型、坐标、边界与参数默认值检查
-python3 Scripts/validate_materials.py
-
-# 本机 Metal 与 CPU 的逐 texel 对照（含半精度误差检查）
-python3 Scripts/verify_compute.py
-
-# Debug 应用安装后：全部材质 × 两组模型 × 九种底色；保存五张截图
-SIMCTL_CHILD_MTL_DEBUG_LAYER=1 python3 Scripts/capture_shader_audit.py --preview --output artifacts/preview-audit
-
-# 构建 + 模拟器运行
-xcodebuild -project RealityOpticsShaderLab.xcodeproj -scheme RealityOpticsShaderLab \
-  -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=26.5' build
-xcrun simctl install booted <DerivedData>/Debug-xrsimulator/RealityOpticsShaderLab.app
-xcrun simctl launch booted com.reality.RealityOpticsShaderLab
-```
-
-Xcode 26.6 / visionOS 26.5 模拟器验证通过；部署目标 visionOS 2.0。
-
-## 手写 .usda 材质图的踩坑记录
-
-- 几何节点必须显式选择坐标空间：Normal/Tangent 默认 object，View Direction 默认 world，不能直接混算。
-- LUT 的 U/V 地址模式必须显式 clamp；厚度/视角端点不应回绕。
-
-0. **RealityKit 纹理采样 V 轴与 blit 写入行序相反**：MaterialX 自下而上采样，
-   CPU 字节自上而下写入，所有 LUT 的 V 轴实际读的是镜像数据（彩虹类效果看不出错，
-   定向效果如闪蝶蓝带直接错位）。在 `LUTTexture.upload()` 统一翻转行序。
-0. **RealityView 的 make 闭包里不要读 @Observable 状态**：SwiftUI 会在状态变化时重跑
-   make，导致场景被重建/订阅堆积。本项目 make 只建空根节点，物体创建与材质同步由
-   `AppModel.materialRevision` 驱动（`syncSceneObjects()`），make 内经非结构化 Task
-   补一次初始同步。
-0. **不要用 `MTLTexture.replace(region:withBytes:)` 直写 `LowLevelTexture.read()` 返回的
-   纹理**：会与 RealityKit 在飞行中的帧竞争，模拟器上偶发主线程死锁（进程僵死、
-   SIGTERM 杀不掉，`sample` 可见卡在 replace）。应走文档化 GPU 路径：
-   `lowLevelTexture.replace(using: commandBuffer)` 取目标纹理 + blit 编码器从
-   staging buffer 拷入（同参考工程的 compute-shader 模式）。
-1. **`.rkassets` 会被编译进单一 `.reality` 归档**（Xcode 26.6）。要从
-   `ShaderGraphMaterial(named:from:)` 按 usda 路径加载，需把 usda 放在普通目录并声明
-   `resources: [.copy("Materials")]` 随 bundle 松散发布。
-2. **`LoadError error 6` = 端口类型不匹配**。真因要去系统日志里找：
-   `log show … | grep shadergraph`，例如
-   `float (mtlx:named(float)) != float3` / `Unknown input name 'in'`。
-3. MaterialX 节点输入名/类型陷阱（SDK 不会校验 usda，错在运行时）：
-   - `ND_fractal3d_color3`：`amplitude` 是 **float3**、`octaves` 是 **int**
-   - `ND_power_float` 输入是 **in1/in2**（不是 in/power）
-   - 二元数学节点（multiply/add/subtract/dotproduct）一律 `in1`/`in2`
-   - `ND_mix_float` 是 `bg/fg/mix`；`ND_clamp_float` 是 `in/low/high`
-4. Material prim 骨架建议带一个 inactive 的 `DefaultSurfaceShader`
-   （`info:id = "UsdPreviewSurface"`）并把 `outputs:surface.connect` 指向它，
-   `outputs:mtlx:surface.connect` 指向真正使用的表面节点。
-
-## 参数面板
-
-- **暂停旋转 / 继续旋转**：暂停或恢复转台自转，便于从不同角度观察静态的干涉/衍射色
-- 薄膜：ThicknessScale/Bias（厚度分布）、NoiseAmount（fractal 扰动）、Gain、Opacity、
-  Film IOR（**触发 LUT 重建**，1.20–1.45）
-- 光栅：DensityScale/Bias（径向密度映射）、Gain、LightAzimuth（光源方位角）
-
-## 参考
-
-- Belcour & Barla, *A Practical Extension to Microfacet Theory for the Modeling of
-  Varying Iridescence*, SIGGRAPH 2017（厚度抗混叠思想）
-- Andrew Glassner, *Soap Bubbles*（肥皂泡光学基础）
-- [CIE 1931 2° 标准观察者](https://www.cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer) / [CIE D65 标准光源](https://www.cie.co.at/datatable/cie-standard-illuminant-d65)：官方数据按 5nm 取样
-- 项目结构参考：VisionOSShadersBookExample（LowLevelTexture 链路）、
-  RealityGlitchArt / RealityShaderExtension（ND_* 节点清单与 usda 语法）
+- **懒加载与请求合并**：只加载当前效果需要的模板和 LUT；同键并发请求共享任务，已加载资源直接复用，过期请求不会覆盖新选择。
+- **GPU 预计算与缓存**：Compute 直接写入 `LowLevelTexture`，正常路径无需回读 CPU；共用计算管线与颜色权重；雨虹偏向角和 Rayleigh 系数按波长预计算一次，异步等待 GPU 完成。
+- **材质实例与网格复用**：35 种效果共用 29 个 ShaderGraph 模板，各效果参数独立；visionOS 显示两个模型，iOS 同时显示四个，复用球体、平面、尺子和光盘网格。
+- **混合精度**：颜色权重使用 `half4`，LUT 使用 `RGBA16F`；相位、Fresnel、坐标与光谱累加保留 `float32`。
+- **减少重复计算与采样**：复用光谱循环中的公共项；油膜、阳极氧化钛、镜头镀膜和二向色玻璃均单次查表，二向色玻璃由未裁剪的反射颜色推导透射颜色。细微结构通过程序纹理和解析近似呈现；莫尔纹直接计算低频拍频，避免细条纹的亚像素闪烁；柱镜仅采样相邻两幅视图；图集限制采样范围，避免相邻视图串色。
+- **按需更新**：肥皂膜折射率输入采用 120 ms 防抖，最多缓存 4 个版本；普通参数与基础色只更新材质参数，跳过相同值写入。暂停旋转时停止重复更新姿态。

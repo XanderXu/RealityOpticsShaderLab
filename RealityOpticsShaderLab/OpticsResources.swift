@@ -75,6 +75,12 @@ final class OpticsResources {
         async let base = template(name)
         var bindings: [(String, OpticsLUT)] = []
         switch effect {
+        case .gemFire, .absorbingGlass: bindings = [("Environment", .spatial(.environment))]
+        case .lenticular: bindings = [("Views", .spatial(.views))]
+        case .parallaxNebula: bindings = [("Layers", .spatial(.nebula))]
+        case .rainbow: bindings = [("RainbowLUT", .spatial(.rainbow))]
+        case .atmosphere: bindings = [("AtmosphereLUT", .spatial(.atmosphere))]
+        case .moire: break
         case .thinFilm: bindings = [("FilmLUT", .film(ior: soapIOR))]
         case .grating: bindings = [("GratingLUT", .grating)]
         case .nacre: bindings = [("FilmLUT", .nacre)]

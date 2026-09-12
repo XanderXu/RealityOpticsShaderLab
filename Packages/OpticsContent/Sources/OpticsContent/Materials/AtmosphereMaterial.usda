@@ -1,0 +1,430 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "AtmosphereMaterial"
+    {
+        float inputs:LightAngle = 70
+        float inputs:Density = 1
+        float inputs:Sunset = 0
+        float inputs:Gain = 2.5
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        asset inputs:AtmosphereLUT
+        token outputs:mtlx:surface.connect = </Root/AtmosphereMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/AtmosphereMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "NormalSource"
+        {
+            uniform token info:id = "ND_normal_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "NormalSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/NormalSource.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/NormalSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NormalSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/NormalSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "NormalLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/NormalSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Normal"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/NormalSource.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/NormalLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "NdotV"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AbsNV"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/NdotV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NV"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/AbsNV.outputs:out>
+            float inputs:low = 0.002
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "LightRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial.inputs:LightAngle>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "LightX"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightZ"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/LightRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "WorldLight"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/LightX.outputs:out>
+            float inputs:in2 = 0.0
+            float inputs:in3.connect = </Root/AtmosphereMaterial/LightZ.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "LightTransform"
+        {
+            uniform token info:id = "ND_transformvector_vector3"
+            float3 inputs:in.connect = </Root/AtmosphereMaterial/WorldLight.outputs:out>
+            string inputs:fromspace = "world"
+            string inputs:tospace = "object"
+            float3 outputs:out
+        }
+
+        def Shader "LightSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/LightTransform.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/LightTransform.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LightSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/LightSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "LightLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/LightSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Light"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/LightTransform.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/LightLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "SolarNormal"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/Normal.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/Light.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SolarOffset"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/SolarNormal.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial.inputs:Sunset>
+            float outputs:out
+        }
+
+        def Shader "SolarCos"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/SolarOffset.outputs:out>
+            float inputs:low = -1
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "SolarScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/SolarCos.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SolarCoordinate"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/SolarScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ViewCos2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/NV.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/NV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ShellSquare"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/ViewCos2.outputs:out>
+            float inputs:in2 = 0.1025
+            float outputs:out
+        }
+
+        def Shader "ShellRoot"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/ShellSquare.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ShellPath"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/ShellRoot.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/NV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DensityScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial.inputs:Density>
+            float inputs:in2 = 3.0
+            float outputs:out
+        }
+
+        def Shader "AtmosphereDepth"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/ShellPath.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/DensityScale.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "DepthCoordinate"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/AtmosphereDepth.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "AtmosphereUV"
+        {
+            uniform token info:id = "ND_combine2_vector2"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/SolarCoordinate.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/DepthCoordinate.outputs:out>
+            float2 outputs:out
+        }
+
+        def Shader "Atmosphere"
+        {
+            uniform token info:id = "ND_image_color3"
+            asset inputs:file.connect = </Root/AtmosphereMaterial.inputs:AtmosphereLUT>
+            float2 inputs:texcoord.connect = </Root/AtmosphereMaterial/AtmosphereUV.outputs:out>
+            color3f inputs:default = (0, 0, 0)
+            string inputs:uaddressmode = "clamp"
+            string inputs:vaddressmode = "clamp"
+            color3f outputs:out
+        }
+
+        def Shader "LightView"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/AtmosphereMaterial/Light.outputs:out>
+            float3 inputs:in2.connect = </Root/AtmosphereMaterial/View.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PhaseSquare"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/LightView.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/LightView.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PhaseBase"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/AtmosphereMaterial/PhaseSquare.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RayleighPhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/AtmosphereMaterial/PhaseBase.outputs:out>
+            float inputs:in2 = 0.75
+            float outputs:out
+        }
+
+        def Shader "ScatteredLight"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial/Atmosphere.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial/RayleighPhase.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "LitSurface"
+        {
+            uniform token info:id = "ND_clamp_float"
+            float inputs:in.connect = </Root/AtmosphereMaterial/SolarCos.outputs:out>
+            float inputs:low = 0
+            float inputs:high = 1
+            float outputs:out
+        }
+
+        def Shader "Daylight"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 0.04
+            float inputs:in2.connect = </Root/AtmosphereMaterial/LitSurface.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "PlanetSurface"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1 = (0.012, 0.032, 0.065)
+            float inputs:in2.connect = </Root/AtmosphereMaterial/Daylight.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "Planet"
+        {
+            uniform token info:id = "ND_add_color3"
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial/PlanetSurface.outputs:out>
+            color3f inputs:in2.connect = </Root/AtmosphereMaterial/ScatteredLight.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial/Planet.outputs:out>
+            float inputs:in2.connect = </Root/AtmosphereMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AtmosphereMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/AtmosphereMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/AtmosphereMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/AtmosphereMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/AtmosphereMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/AtmosphereMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

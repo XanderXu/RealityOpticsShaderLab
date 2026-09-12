@@ -2,13 +2,18 @@ import Foundation
 
 /// Immutable lookup identity. Only the soap LUT depends on an interactive value.
 public enum OpticsLUT: Hashable, Sendable {
+    case spatial(SpatialLookup)
     case layered(LayeredFilm)
     case film(ior: Float)
     case grating, nacre, birefringence, morpho, newton
 
-    public var width: Int { self == .birefringence ? 1024 : 256 }
+    public var width: Int {
+        if case .spatial(let model) = self { return model.width }
+        return self == .birefringence ? 1024 : 256
+    }
     public var height: Int {
         switch self {
+        case .spatial(let model): return model.height
         case .birefringence: return 1
         case .grating: return 128
         case .newton: return 512
@@ -21,6 +26,7 @@ public enum OpticsLUT: Hashable, Sendable {
     /// Matches the 16-byte Metal OpticsParameters layout.
     public var gpuParameters: OpticsGPUParameters {
         switch self {
+        case .spatial(let model): return .init(kind: model.rawValue)
         case .layered(let model): return .init(kind: model.rawValue, thicknessMax: model.domainSpan)
         case .film(let ior): return .init(kind: 0, ior: ior, sigma: 15)
         case .morpho: return .init(kind: 0, ior: 1.56, sigma: 30)
@@ -35,6 +41,7 @@ public enum OpticsLUT: Hashable, Sendable {
     /// and texel-center convention; no resolution or wavelength reduction.
     public func referencePixels() -> [UInt16] {
         switch self {
+        case .spatial(let model): return model.pixels()
         case .layered(let model): return model.pixels(preserveSignedRGB: model == .dichroic)
         case .film(let ior): return LUTBuilder.filmLUT(config: .init(n2: ior, sigmaD: 15))
         case .grating: return LUTBuilder.gratingLUT()

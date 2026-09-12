@@ -7,18 +7,18 @@ struct PreviewControlsView: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(model.previewGroup.title).font(.subheadline.weight(.semibold))
-                    Text("同一材质 · 双模型对比").font(.caption2).foregroundStyle(.secondary)
-                }
+                Text("对比模型").font(.subheadline)
                 Spacer(minLength: 8)
-                Toggle("第二组", isOn: Binding(
-                    get: { model.previewGroup == .instruments },
-                    set: { model.previewGroup = $0 ? .instruments : .basic }
-                ))
-                .font(.subheadline)
-                .fixedSize()
-                .accessibilityIdentifier("preview.secondGroup")
+                Picker("对比模型", selection: Binding(
+                    get: { model.previewGroup },
+                    set: { model.previewGroup = $0 }
+                )) {
+                    Text("第一组").tag(PreviewGroup.basic)
+                    Text("第二组").tag(PreviewGroup.instruments)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 260)
+                .accessibilityIdentifier("preview.group")
             }
 
             HStack {
@@ -63,7 +63,7 @@ struct PreviewControlsView: View {
     private var palette: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("材质基础色").font(.headline)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 10) {
                 colorButton(nil)
                 ForEach(PreviewColor.allCases) { color in colorButton(color) }
             }
@@ -73,7 +73,7 @@ struct PreviewControlsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(22)
-        .frame(width: 400)
+        .frame(width: 320)
     }
 
     private func colorButton(_ color: PreviewColor?) -> some View {
@@ -82,7 +82,7 @@ struct PreviewControlsView: View {
             showsPalette = false
         } label: {
             VStack(spacing: 7) {
-                swatch(color)
+                swatch(color, showsOriginalIcon: model.previewBaseColor != color)
                     .frame(width: 36, height: 36)
                     .overlay {
                         if model.previewBaseColor == color {
@@ -106,11 +106,11 @@ struct PreviewControlsView: View {
         .accessibilityIdentifier("preview.color.\(color?.rawValue ?? "original")")
     }
 
-    private func swatch(_ color: PreviewColor?) -> some View {
+    private func swatch(_ color: PreviewColor?, showsOriginalIcon: Bool = true) -> some View {
         Circle()
             .fill(color?.color ?? Color(white: 0.25))
             .overlay {
-                if color == nil {
+                if color == nil && showsOriginalIcon {
                     Image(systemName: "sparkles").font(.caption).foregroundStyle(.white)
                 }
             }

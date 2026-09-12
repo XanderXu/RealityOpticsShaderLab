@@ -1,0 +1,579 @@
+#usda 1.0
+(defaultPrim = "Root")
+def Xform "Root"
+{
+    def Material "MoireMaterial"
+    {
+        float inputs:Frequency = 24
+        float inputs:Mismatch = 0.055
+        float inputs:LayerGap = 0.1
+        float inputs:Rotation = 5
+        float inputs:Gain = 1.2
+        float inputs:Intensity = 1
+        color3f inputs:BaseColor = (0.2140411405, 0.2140411405, 0.2140411405)
+        float inputs:BaseAmount = 0
+        token outputs:mtlx:surface.connect = </Root/MoireMaterial/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+        token outputs:surface.connect = </Root/MoireMaterial/DefaultSurfaceShader.outputs:surface>
+
+        def Shader "ViewSource"
+        {
+            uniform token info:id = "ND_realitykit_viewdirection_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "ViewSq"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/ViewSource.outputs:out>
+            float3 inputs:in2.connect = </Root/MoireMaterial/ViewSource.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ViewSafe"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/MoireMaterial/ViewSq.outputs:out>
+            float inputs:in2 = 1e-06
+            float outputs:out
+        }
+
+        def Shader "ViewLength"
+        {
+            uniform token info:id = "ND_sqrt_float"
+            float inputs:in.connect = </Root/MoireMaterial/ViewSafe.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "View"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/MoireMaterial/ViewSource.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/ViewLength.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "Position"
+        {
+            uniform token info:id = "ND_position_vector3"
+            string inputs:space = "object"
+            float3 outputs:out
+        }
+
+        def Shader "UnitPosition"
+        {
+            uniform token info:id = "ND_divide_vector3FA"
+            float3 inputs:in1.connect = </Root/MoireMaterial/Position.outputs:out>
+            float inputs:in2 = 0.12
+            float3 outputs:out
+        }
+
+        def Shader "SurfaceX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "SurfaceY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/UnitPosition.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "UScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceX.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/UScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "VScale"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceY.outputs:out>
+            float inputs:in2 = 0.45
+            float outputs:out
+        }
+
+        def Shader "SurfaceV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/VScale.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "ObserverX"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/View.outputs:out>
+            float3 inputs:in2 = (1.0, 0.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "ObserverY"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/View.outputs:out>
+            float3 inputs:in2 = (0.0, 1.0, 0.0)
+            float outputs:out
+        }
+
+        def Shader "ObserverZ"
+        {
+            uniform token info:id = "ND_dotproduct_vector3"
+            float3 inputs:in1.connect = </Root/MoireMaterial/View.outputs:out>
+            float3 inputs:in2 = (0.0, 0.0, 1.0)
+            float outputs:out
+        }
+
+        def Shader "AbsViewZ"
+        {
+            uniform token info:id = "ND_absval_float"
+            float inputs:in.connect = </Root/MoireMaterial/ObserverZ.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "ParallaxDenominator"
+        {
+            uniform token info:id = "ND_max_float"
+            float inputs:in1.connect = </Root/MoireMaterial/AbsViewZ.outputs:out>
+            float inputs:in2 = 0.25
+            float outputs:out
+        }
+
+        def Shader "SlopeX"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/MoireMaterial/ObserverX.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/ParallaxDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SlopeY"
+        {
+            uniform token info:id = "ND_divide_float"
+            float inputs:in1.connect = </Root/MoireMaterial/ObserverY.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/ParallaxDenominator.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RotationRadians"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial.inputs:Rotation>
+            float inputs:in2 = 0.01745329252
+            float outputs:out
+        }
+
+        def Shader "CenteredU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceU.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "CenteredV"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceV.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "CosRotation"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/MoireMaterial/RotationRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SinRotation"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/MoireMaterial/RotationRadians.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CosU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/CenteredU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/CosRotation.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "SinV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/CenteredV.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/SinRotation.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RotatedCenteredU"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/MoireMaterial/CosU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/SinV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RotatedU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/RotatedCenteredU.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "SinU"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/CenteredU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/SinRotation.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "CosV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/CenteredV.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/CosRotation.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RotatedCenteredV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SinU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/CosV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RotatedV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/RotatedCenteredV.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "LayerShift"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SlopeX.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial.inputs:LayerGap>
+            float outputs:out
+        }
+
+        def Shader "FarU"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/RotatedU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/LayerShift.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "LayerShiftV"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SlopeY.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial.inputs:LayerGap>
+            float outputs:out
+        }
+
+        def Shader "FarV"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/RotatedV.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/LayerShiftV.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NearCurvePhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceV.outputs:out>
+            float inputs:in2 = 6.283185307
+            float outputs:out
+        }
+
+        def Shader "NearCurve"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/MoireMaterial/NearCurvePhase.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "NearWarp"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/NearCurve.outputs:out>
+            float inputs:in2 = 0.22
+            float outputs:out
+        }
+
+        def Shader "FarCurvePhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/FarV.outputs:out>
+            float inputs:in2 = 6.283185307
+            float outputs:out
+        }
+
+        def Shader "FarCurve"
+        {
+            uniform token info:id = "ND_sin_float"
+            float inputs:in.connect = </Root/MoireMaterial/FarCurvePhase.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FarWarp"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/FarCurve.outputs:out>
+            float inputs:in2 = 0.22
+            float outputs:out
+        }
+
+        def Shader "NearCurved"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/SurfaceU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/NearWarp.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FarCurved"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/FarU.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/FarWarp.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "AngularFrequency"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial.inputs:Frequency>
+            float inputs:in2 = 6.283185307
+            float outputs:out
+        }
+
+        def Shader "NearPhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/NearCurved.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/AngularFrequency.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FrequencyRatio"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 1.0
+            float inputs:in2.connect = </Root/MoireMaterial.inputs:Mismatch>
+            float outputs:out
+        }
+
+        def Shader "FarFrequency"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/AngularFrequency.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/FrequencyRatio.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "FarPhase"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/FarCurved.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/FarFrequency.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "BeatPhase"
+        {
+            uniform token info:id = "ND_subtract_float"
+            float inputs:in1.connect = </Root/MoireMaterial/NearPhase.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/FarPhase.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Phase0"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/BeatPhase.outputs:out>
+            float inputs:in2 = 0.0
+            float outputs:out
+        }
+
+        def Shader "Beat0"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/MoireMaterial/Phase0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Amplitude0"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/Beat0.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Color0"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 0.5
+            float inputs:in2.connect = </Root/MoireMaterial/Amplitude0.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Phase1"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/BeatPhase.outputs:out>
+            float inputs:in2 = 2.094395102
+            float outputs:out
+        }
+
+        def Shader "Beat1"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/MoireMaterial/Phase1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Amplitude1"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/Beat1.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Color1"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 0.5
+            float inputs:in2.connect = </Root/MoireMaterial/Amplitude1.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Phase2"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1.connect = </Root/MoireMaterial/BeatPhase.outputs:out>
+            float inputs:in2 = 4.188790204
+            float outputs:out
+        }
+
+        def Shader "Beat2"
+        {
+            uniform token info:id = "ND_cos_float"
+            float inputs:in.connect = </Root/MoireMaterial/Phase2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "Amplitude2"
+        {
+            uniform token info:id = "ND_multiply_float"
+            float inputs:in1.connect = </Root/MoireMaterial/Beat2.outputs:out>
+            float inputs:in2 = 0.5
+            float outputs:out
+        }
+
+        def Shader "Color2"
+        {
+            uniform token info:id = "ND_add_float"
+            float inputs:in1 = 0.5
+            float inputs:in2.connect = </Root/MoireMaterial/Amplitude2.outputs:out>
+            float outputs:out
+        }
+
+        def Shader "RGB"
+        {
+            uniform token info:id = "ND_combine3_vector3"
+            float inputs:in1.connect = </Root/MoireMaterial/Color0.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial/Color1.outputs:out>
+            float inputs:in3.connect = </Root/MoireMaterial/Color2.outputs:out>
+            float3 outputs:out
+        }
+
+        def Shader "BeatColor"
+        {
+            uniform token info:id = "ND_convert_vector3_color3"
+            float3 inputs:in.connect = </Root/MoireMaterial/RGB.outputs:out>
+            color3f outputs:out
+        }
+
+        def Shader "GainMul"
+        {
+            uniform token info:id = "ND_multiply_color3FA"
+            color3f inputs:in1.connect = </Root/MoireMaterial/BeatColor.outputs:out>
+            float inputs:in2.connect = </Root/MoireMaterial.inputs:Gain>
+            color3f outputs:out
+        }
+
+        def Shader "BaseColorBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/MoireMaterial/GainMul.outputs:out>
+            color3f inputs:fg.connect = </Root/MoireMaterial.inputs:BaseColor>
+            float inputs:mix.connect = </Root/MoireMaterial.inputs:BaseAmount>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityBlend"
+        {
+            uniform token info:id = "ND_mix_color3"
+            color3f inputs:bg.connect = </Root/MoireMaterial.inputs:BaseColor>
+            color3f inputs:fg.connect = </Root/MoireMaterial/BaseColorBlend.outputs:out>
+            float inputs:mix.connect = </Root/MoireMaterial.inputs:Intensity>
+            color3f outputs:out
+        }
+
+        def Shader "IntensityClamp"
+        {
+            uniform token info:id = "ND_max_color3"
+            color3f inputs:in1.connect = </Root/MoireMaterial/IntensityBlend.outputs:out>
+            color3f inputs:in2 = (0, 0, 0)
+            color3f outputs:out
+        }
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            color3f inputs:color.connect = </Root/MoireMaterial/IntensityClamp.outputs:out>
+            float inputs:opacity = 1.0
+            bool inputs:applyPostProcessToneMap = 0
+            token outputs:out
+        }
+
+        def Shader "DefaultSurfaceShader" (active = false)
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (1, 1, 1)
+            float inputs:roughness = 0.75
+            token outputs:surface
+        }
+    }
+}

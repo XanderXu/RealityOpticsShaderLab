@@ -1,0 +1,143 @@
+[0/1] Planning build
+Building for production...
+[0/3] Write sources
+[1/3] Write swift-version--58304C5D6DBC2206.txt
+[3/4] Compiling OpticsPhysics DiffractionGrating.swift
+[3/5] Write Objects.LinkFileList
+[4/5] Linking OpticsPhysicsPackageTests
+Build complete! (2.12s)
+Test Suite 'All tests' started at 2026-09-12 07:50:13.004.
+Test Suite 'OpticsPhysicsPackageTests.xctest' started at 2026-09-12 07:50:13.005.
+Test Suite 'BirefringenceTests' started at 2026-09-12 07:50:13.005.
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testBirefringenceLUTNonBlack]' started.
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testBirefringenceLUTNonBlack]' passed (0.001 seconds).
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testPiRetardanceTransmitsGreen]' started.
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testPiRetardanceTransmitsGreen]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testTwoPiRetardanceExtinctAtReference]' started.
+Test Case '-[OpticsPhysicsTests.BirefringenceTests testTwoPiRetardanceExtinctAtReference]' passed (0.000 seconds).
+Test Suite 'BirefringenceTests' passed at 2026-09-12 07:50:13.006.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DiffractionGratingTests' started at 2026-09-12 07:50:13.006.
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testGratingEquationKnownPoint]' started.
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testGratingEquationKnownPoint]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testOutOfRangeGivesNoColor]' started.
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testOutOfRangeGivesNoColor]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testPeriodFromDensity]' started.
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testPeriodFromDensity]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testSpectrumPeaksNearPredictedWavelength]' started.
+Test Case '-[OpticsPhysicsTests.DiffractionGratingTests testSpectrumPeaksNearPredictedWavelength]' passed (0.000 seconds).
+Test Suite 'DiffractionGratingTests' passed at 2026-09-12 07:50:13.007.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'FilmReferenceTests' started at 2026-09-12 07:50:13.007.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testFastAiryMatchesIndependentComplexExpansion]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testFastAiryMatchesIndependentComplexExpansion]' passed (0.002 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testFrustratedTotalInternalReflection]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testFrustratedTotalInternalReflection]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testIdenticalMediaAreInvisibleIncludingGrazing]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testIdenticalMediaAreInvisibleIncludingGrazing]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testLosslessTotalReflectionIntoSubstrate]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testLosslessTotalReflectionIntoSubstrate]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testNewtonAirGapHasDifferentOpticalPeriodFromSoap]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testNewtonAirGapHasDifferentOpticalPeriodFromSoap]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testQuarterWaveAndHalfWaveSlab]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testQuarterWaveAndHalfWaveSlab]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testVanishingFilmIsExteriorSubstrateInterface]' started.
+Test Case '-[OpticsPhysicsTests.FilmReferenceTests testVanishingFilmIsExteriorSubstrateInterface]' passed (0.000 seconds).
+Test Suite 'FilmReferenceTests' passed at 2026-09-12 07:50:13.011.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'GratingContinuityTests' started at 2026-09-12 07:50:13.011.
+Test Case '-[OpticsPhysicsTests.GratingContinuityTests testMirroredOrdersHaveEqualSpectraAndBoundedEnergy]' started.
+Test Case '-[OpticsPhysicsTests.GratingContinuityTests testMirroredOrdersHaveEqualSpectraAndBoundedEnergy]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.GratingContinuityTests testSpectralBandsCrossVisibleLimitsContinuously]' started.
+Test Case '-[OpticsPhysicsTests.GratingContinuityTests testSpectralBandsCrossVisibleLimitsContinuously]' passed (0.000 seconds).
+Test Suite 'GratingContinuityTests' passed at 2026-09-12 07:50:13.011.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'LUTBuilderTests' started at 2026-09-12 07:50:13.011.
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testFilmLUTGrazingBrighterThanNormal]' started.
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testFilmLUTGrazingBrighterThanNormal]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testFilmLUTSizeAndNonTrivial]' started.
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testFilmLUTSizeAndNonTrivial]' passed (0.001 seconds).
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testHalfConversion]' started.
+Test Case '-[OpticsPhysicsTests.LUTBuilderTests testHalfConversion]' passed (0.000 seconds).
+Test Suite 'LUTBuilderTests' passed at 2026-09-12 07:50:13.013.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'LayeredFilmTests' started at 2026-09-12 07:50:13.013.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testGamutClippingMustFollowComplement]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testGamutClippingMustFollowComplement]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testOilMatchesIndependentThreeMediumAirySolver]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testOilMatchesIndependentThreeMediumAirySolver]' passed (0.001 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testPassiveStacksStayFiniteAtGrazingAndAcrossDomains]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testPassiveStacksStayFiniteAtGrazingAndAcrossDomains]' passed (0.002 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testQuarterWaveAntireflectionMinimum]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testQuarterWaveAntireflectionMinimum]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testSignedLookupComplementMatchesIndependentTransmissionIntegration]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testSignedLookupComplementMatchesIndependentTransmissionIntegration]' passed (0.059 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testSixLayerBraggCenterMatchesClosedForm]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testSixLayerBraggCenterMatchesClosedForm]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testZeroThicknessCollapsesToBareSubstrate]' started.
+Test Case '-[OpticsPhysicsTests.LayeredFilmTests testZeroThicknessCollapsesToBareSubstrate]' passed (0.000 seconds).
+Test Suite 'LayeredFilmTests' passed at 2026-09-12 07:50:13.077.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.063 (0.064) seconds
+Test Suite 'LookupRegressionTests' started at 2026-09-12 07:50:13.077.
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testAllLookupBuildersProduceFiniteNonnegativeRGBA]' started.
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testAllLookupBuildersProduceFiniteNonnegativeRGBA]' passed (0.005 seconds).
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testHalfConversionCoversEveryFiniteHalfAndOverflowRounding]' started.
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testHalfConversionCoversEveryFiniteHalfAndOverflowRounding]' passed (0.021 seconds).
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testWhiteLightRetardanceDoesNotRepeatEveryReferenceCycle]' started.
+Test Case '-[OpticsPhysicsTests.LookupRegressionTests testWhiteLightRetardanceDoesNotRepeatEveryReferenceCycle]' passed (0.001 seconds).
+Test Suite 'LookupRegressionTests' passed at 2026-09-12 07:50:13.105.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.027 (0.028) seconds
+Test Suite 'SpatialLookupTests' started at 2026-09-12 07:50:13.105.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testAtlasesHaveDistinctViewsAndFiniteColors]' started.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testAtlasesHaveDistinctViewsAndFiniteColors]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testAtmosphereVacuumAndNight]' started.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testAtmosphereVacuumAndNight]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testEnvironmentLongitudeSeamIsContinuous]' started.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testEnvironmentLongitudeSeamIsContinuous]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testRainbowAnglesAndReversedSecondaryOrder]' started.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testRainbowAnglesAndReversedSecondaryOrder]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testRainbowLocalizedAroundAntisolarRings]' started.
+Test Case '-[OpticsPhysicsTests.SpatialLookupTests testRainbowLocalizedAroundAntisolarRings]' passed (0.000 seconds).
+Test Suite 'SpatialLookupTests' passed at 2026-09-12 07:50:13.105.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'SpectralReferenceTests' started at 2026-09-12 07:50:13.105.
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testNearestWavelengthIndex]' started.
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testNearestWavelengthIndex]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testOfficialCIESamplesAndD65Chromaticity]' started.
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testOfficialCIESamplesAndD65Chromaticity]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testRGBIntegrationIsLinear]' started.
+Test Case '-[OpticsPhysicsTests.SpectralReferenceTests testRGBIntegrationIsLinear]' passed (0.000 seconds).
+Test Suite 'SpectralReferenceTests' passed at 2026-09-12 07:50:13.106.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'SpectrumTests' started at 2026-09-12 07:50:13.106.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testAbsorbAllIsBlack]' started.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testAbsorbAllIsBlack]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic450IsBlueDominant]' started.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic450IsBlueDominant]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic550IsGreenDominant]' started.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic550IsGreenDominant]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic650IsRedDominant]' started.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testMonochromatic650IsRedDominant]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.SpectrumTests testReflectAllIsWhiteUnderD65]' started.
+Test Case '-[OpticsPhysicsTests.SpectrumTests testReflectAllIsWhiteUnderD65]' passed (0.000 seconds).
+Test Suite 'SpectrumTests' passed at 2026-09-12 07:50:13.107.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ThinFilmTests' started at 2026-09-12 07:50:13.107.
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testGrazingAngleReflectsMoreThanNormal]' started.
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testGrazingAngleReflectsMoreThanNormal]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testReflectanceEnergyBounded]' started.
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testReflectanceEnergyBounded]' passed (0.001 seconds).
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testThicknessSweepsThroughHues]' started.
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testThicknessSweepsThroughHues]' passed (0.000 seconds).
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testZeroThicknessReflectsLikePlainInterface]' started.
+Test Case '-[OpticsPhysicsTests.ThinFilmTests testZeroThicknessReflectsLikePlainInterface]' passed (0.000 seconds).
+Test Suite 'ThinFilmTests' passed at 2026-09-12 07:50:13.108.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'OpticsPhysicsPackageTests.xctest' passed at 2026-09-12 07:50:13.108.
+	 Executed 46 tests, with 0 failures (0 unexpected) in 0.100 (0.103) seconds
+Test Suite 'All tests' passed at 2026-09-12 07:50:13.108.
+	 Executed 46 tests, with 0 failures (0 unexpected) in 0.100 (0.104) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 1902
+􀄵  Target Platform: arm64e-apple-macos14.0
+􁁛  Test run with 0 tests in 0 suites passed after 0.001 seconds.
