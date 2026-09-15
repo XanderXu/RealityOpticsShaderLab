@@ -14,7 +14,7 @@ struct SettingSpec: Identifiable {
 
     init(id: String, label: String, range: ClosedRange<Float>, get: @escaping () -> Float, set: @escaping (Float) -> Void) {
         self.id = id
-        self.label = label
+        self.label = L10n.text(label)
         self.range = range
         self.get = get
         self.set = { value in
@@ -51,7 +51,8 @@ final class AppModel {
     init() {
         #if DEBUG
         if ProcessInfo.processInfo.environment["OPTICS_AUDIT"] == "1"
-            || ProcessInfo.processInfo.environment["OPTICS_PREVIEW_AUDIT"] == "1" {
+            || ProcessInfo.processInfo.environment["OPTICS_PREVIEW_AUDIT"] == "1"
+            || ProcessInfo.processInfo.environment["OPTICS_CAPTURE"] == "1" {
             isAnimating = false
         }
         #endif
@@ -239,7 +240,7 @@ final class AppModel {
     private(set) var dragonflyMaterial: ShaderGraphMaterial?
     private(set) var chameleonMaterial: ShaderGraphMaterial?
     private(set) var scarabMaterial: ShaderGraphMaterial?
-    private(set) var statusMessage = "Booting optics…"
+    private(set) var statusMessage = L10n.text("Booting optics…")
 
     /// Bumped whenever a material is (re)created or re-parameterized.
     /// The scene view syncs entities against this instead of reading materials
@@ -545,7 +546,7 @@ final class AppModel {
     func prepareSelectedEffect() async {
         let effect = selectedEffect
         let start = ContinuousClock.now
-        statusMessage = "正在加载\(effect.menuTitle)…"
+        statusMessage = L10n.format("正在加载%@…", effect.menuTitle)
         do {
             try await ensureLoaded(effect)
             try Task.checkCancellation()
@@ -572,7 +573,7 @@ final class AppModel {
         } catch is CancellationError {
             // A newer selection owns the visible status.
         } catch {
-            if selectedEffect == effect { report(error: "加载失败：\(error.localizedDescription)") }
+            if selectedEffect == effect { report(error: L10n.format("加载失败：%@", error.localizedDescription)) }
         }
     }
 
@@ -1016,7 +1017,7 @@ final class AppModel {
             synchronizedRevision = materialRevision
             return true
         } catch {
-            report(error: "模型加载失败：\(error.localizedDescription)")
+            report(error: L10n.format("模型加载失败：%@", error.localizedDescription))
             return false
         }
     }
@@ -1041,7 +1042,7 @@ final class AppModel {
             return
         }
         let ior = soapIOR
-        statusMessage = "正在更新薄膜…"
+        statusMessage = L10n.text("正在更新薄膜…")
         rebuildTask = Task { @MainActor in
             do {
                 // Coalesce a continuous slider drag before dispatching GPU work.
@@ -1056,7 +1057,7 @@ final class AppModel {
                 if selectedEffect == .thinFilm, parameterErrors.isEmpty { statusMessage = "Ready" }
             } catch is CancellationError {
             } catch {
-                if selectedEffect == .thinFilm { report(error: "薄膜更新失败：\(error.localizedDescription)") }
+                if selectedEffect == .thinFilm { report(error: L10n.format("薄膜更新失败：%@", error.localizedDescription)) }
             }
         }
     }

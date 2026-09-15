@@ -52,6 +52,10 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
     }
 
     var title: String {
+        L10n.effect(rawValue, "title", fallback: untranslatedTitle)
+    }
+
+    private var untranslatedTitle: String {
         switch self {
         case .gemFire: return "宝石火彩"
         case .absorbingGlass: return "吸收玻璃"
@@ -93,6 +97,10 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 
     /// Short label for the picker menu.
     var menuTitle: String {
+        L10n.effect(rawValue, "menuTitle", fallback: untranslatedMenuTitle)
+    }
+
+    private var untranslatedMenuTitle: String {
         switch self {
         case .gemFire: return "宝石火彩"
         case .absorbingGlass: return "吸收玻璃"
@@ -175,6 +183,10 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 
     /// What the viewer sees in the real phenomenon.
     var subtitle: String {
+        L10n.effect(rawValue, "subtitle", fallback: untranslatedSubtitle)
+    }
+
+    private var untranslatedSubtitle: String {
         switch self {
         case .gemFire: return "切面中的彩色闪光随观察方向切换"
         case .absorbingGlass: return "厚度与观察角度共同改变玻璃透射色"
@@ -232,6 +244,10 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 
     /// Actual implemented model, including its approximation limits.
     var mechanism: String {
+        L10n.effect(rawValue, "mechanism", fallback: untranslatedMechanism)
+    }
+
+    private var untranslatedMechanism: String {
         switch self {
         case .gemFire: return "以固定环境图、三波段折射和一次内部反射近似宝石火彩；切面由程序法线模拟，不追踪真实几何内部光路或现实背景"
         case .absorbingGlass: return "有限平板光程与 RGB Beer–Lambert 吸收，叠加 Fresnel 表面反射；背景为预制环境，非现实透视画面的折射，厚度由参数指定"
@@ -307,7 +323,8 @@ enum OpticsEffect: String, CaseIterable, Identifiable {
 enum OpticsEffectGroup: String, CaseIterable, Identifiable {
     case films, structural, softGlow, directional, polarization, diffraction, dispersion, parallax, atmospheric
     var id: String { rawValue }
-    var title: String {
+    var title: String { L10n.text(untranslatedTitle) }
+    private var untranslatedTitle: String {
         switch self {
         case .dispersion: return "色散与吸收"
         case .parallax: return "视差与叠层"

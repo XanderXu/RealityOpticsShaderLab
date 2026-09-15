@@ -52,7 +52,7 @@ struct MobileContentView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.selectedEffect.menuTitle).font(.subheadline.bold()).lineLimit(1)
-                Label(model.statusMessage == "Ready" ? "渲染就绪" : "准备中", systemImage: "circle.fill")
+                Label(L10n.text(model.statusMessage == "Ready" ? "渲染就绪" : "准备中"), systemImage: "circle.fill")
                     .font(.system(size: 10)).foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
             }
             Spacer(minLength: 0)
@@ -66,7 +66,7 @@ struct MobileContentView: View {
             Button { model.isAnimating.toggle() } label: {
                 Image(systemName: model.isAnimating ? "pause.fill" : "play.fill")
                     .frame(width: 32, height: 34)
-            }.accessibilityLabel(model.isAnimating ? "暂停旋转" : "开始旋转")
+            }.accessibilityLabel(L10n.text(model.isAnimating ? "暂停旋转" : "开始旋转"))
                 .accessibilityIdentifier("preview.animation")
             Button { preview.resetRevision += 1 } label: {
                 Image(systemName: "arrow.counterclockwise").frame(width: 30, height: 34)
@@ -86,7 +86,7 @@ struct MobileContentView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                Text(preview.isAR ? "移动手机观察 · 轻点放置 · 双指缩放" : "球体 / 平面 · 尺子 / 光盘　拖动观察 · 双击复位")
+                Text(L10n.text(preview.isAR ? "移动手机观察 · 轻点放置 · 双指缩放" : "球体 / 平面 · 尺子 / 光盘　拖动观察 · 双击复位"))
                     .font(.system(size: 10)).foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 5)
                     .background(.regularMaterial, in: Capsule()).padding(6)
@@ -94,7 +94,7 @@ struct MobileContentView: View {
             }
             .overlay {
                 if model.isLoadingSelected {
-                    if model.statusMessage.contains("失败") || model.statusMessage.contains("Error") {
+                    if model.statusMessage.contains("失败") || model.statusMessage.contains("Failed") || model.statusMessage.contains("Error") {
                         Button("重新加载") { Task { await model.prepareSelectedEffect() } }
                     } else { ProgressView("准备材质…").font(.caption) }
                 }
@@ -105,8 +105,8 @@ struct MobileContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    panelButton("效果库 · \(OpticsEffect.allCases.count)", icon: "square.grid.2x2", index: 0)
-                    panelButton("参数调节", icon: "slider.horizontal.3", index: 1)
+                    panelButton(L10n.format("效果库 · %d", OpticsEffect.allCases.count), icon: "square.grid.2x2", index: 0)
+                    panelButton(L10n.text("参数调节"), icon: "slider.horizontal.3", index: 1)
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("材质基础色").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -155,7 +155,7 @@ struct MobileContentView: View {
 
     private func baseButton(_ color: PreviewColor?) -> some View {
         Button { model.previewBaseColor = color } label: {
-            swatch(color?.color ?? Color(uiColor: .tertiaryLabel), title: color?.title ?? "原始",
+            swatch(color?.color ?? Color(uiColor: .tertiaryLabel), title: color?.title ?? L10n.text("原始"),
                    selected: model.previewBaseColor == color)
         }.buttonStyle(.plain).accessibilityIdentifier("preview.color.\(color?.rawValue ?? "original")")
     }
@@ -234,7 +234,7 @@ struct MobileContentView: View {
                 HStack {
                     Text(model.selectedEffect.menuTitle)
                     Spacer()
-                    Text("\(model.settingsFor(model.selectedEffect).count) 项")
+                    Text(L10n.format("%d 项", model.settingsFor(model.selectedEffect).count))
                 }.font(.caption).foregroundStyle(.secondary)
                 ForEach(model.settingsFor(model.selectedEffect)) { spec in
                     ParameterSliderRow(spec: spec, compact: true)

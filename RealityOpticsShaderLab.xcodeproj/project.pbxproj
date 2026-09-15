@@ -155,10 +155,11 @@
 				};
 			};
 			buildConfigurationList = AA000000000000000000000F /* Build configuration list for PBXProject "RealityOpticsShaderLab" */;
-			developmentRegion = en;
+			developmentRegion = zh-Hans;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = AA0000000000000000000001;

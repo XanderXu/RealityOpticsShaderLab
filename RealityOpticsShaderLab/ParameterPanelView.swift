@@ -9,7 +9,8 @@ struct ParameterPanelView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("参数调节", systemImage: "slider.horizontal.3")
                     .font(.headline)
-                Text("\(model.selectedEffect.menuTitle) · \(model.settingsFor(model.selectedEffect).count) 项参数")
+                Text(L10n.format("%@ · %d 项参数", model.selectedEffect.menuTitle,
+                                 model.settingsFor(model.selectedEffect).count))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

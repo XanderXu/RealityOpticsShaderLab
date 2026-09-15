@@ -21,7 +21,7 @@ final class MobilePreviewState {
     func useAR() async {
         guard !isAR, !requestingAR else { return }
         guard ARWorldTrackingConfiguration.isSupported else {
-            message = "AR 预览需要支持 ARKit 的真机，模拟器请使用 3D 预览。"
+            message = L10n.text("AR 预览需要支持 ARKit 的真机，模拟器请使用 3D 预览。")
             return
         }
         requestRevision += 1
@@ -36,10 +36,10 @@ final class MobilePreviewState {
         guard revision == requestRevision else { return }
         requestingAR = false
         guard granted else {
-            message = "相机权限未开启，请在系统设置中允许 Optics Lab 使用相机。"
+            message = L10n.text("相机权限未开启，请在系统设置中允许 Optics Lab 使用相机。")
             return
         }
-        message = "正在启动 AR…"
+        message = L10n.text("正在启动 AR…")
         isAR = true
     }
 

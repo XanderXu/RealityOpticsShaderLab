@@ -8,10 +8,10 @@ enum PreviewShape: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .sphere: return "球体"
-        case .plane: return "平面"
-        case .ruler: return "尺子"
-        case .disc: return "光盘"
+        case .sphere: return L10n.text("球体")
+        case .plane: return L10n.text("平面")
+        case .ruler: return L10n.text("尺子")
+        case .disc: return L10n.text("光盘")
         }
     }
 
@@ -90,11 +90,11 @@ enum PreviewColor: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .black: return "黑色"
-        case .white: return "白色"
-        case .red: return "红色"
-        case .green: return "绿色"
-        case .blue: return "蓝色"
+        case .black: return L10n.text("黑色")
+        case .white: return L10n.text("白色")
+        case .red: return L10n.text("红色")
+        case .green: return L10n.text("绿色")
+        case .blue: return L10n.text("蓝色")
         }
     }
 

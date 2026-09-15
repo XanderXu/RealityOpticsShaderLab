@@ -51,7 +51,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Label("\(OpticsEffect.allCases.count) 种光学效果", systemImage: "square.grid.2x2")
+            Label(L10n.format("%d 种光学效果", OpticsEffect.allCases.count), systemImage: "square.grid.2x2")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -66,7 +66,7 @@ struct ContentView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Spacer(minLength: 4)
-                Label(model.statusMessage == "Ready" ? "渲染就绪" : "准备中", systemImage:
+                Label(L10n.text(model.statusMessage == "Ready" ? "渲染就绪" : "准备中"), systemImage:
                         model.statusMessage == "Ready" ? "checkmark.circle.fill" : "info.circle")
                     .font(.caption)
                     .foregroundStyle(model.statusMessage == "Ready" ? .green : .secondary)
@@ -74,7 +74,7 @@ struct ContentView: View {
                 Button {
                     model.isAnimating.toggle()
                 } label: {
-                    Label(model.isAnimating ? "暂停旋转" : "继续旋转",
+                    Label(L10n.text(model.isAnimating ? "暂停旋转" : "继续旋转"),
                           systemImage: model.isAnimating ? "pause.fill" : "play.fill")
                         .font(.subheadline.weight(.semibold))
                         .frame(minHeight: 28)
@@ -90,15 +90,15 @@ struct ContentView: View {
                 .padding(.bottom, 12)
                 .overlay {
                     if model.isLoadingSelected {
-                        if model.statusMessage.contains("失败") {
+                        if model.statusMessage.contains("失败") || model.statusMessage.contains("Failed") {
                             Button("重新加载") { Task { await model.prepareSelectedEffect() } }
                         } else {
-                            ProgressView("正在准备\(model.selectedEffect.menuTitle)…")
+                            ProgressView(L10n.format("正在准备%@…", model.selectedEffect.menuTitle))
                         }
                     }
                 }
 
-            Label("球体 / 平面 · 尺子 / 光盘", systemImage: "square.grid.2x2")
+            Label(L10n.text("球体 / 平面 · 尺子 / 光盘"), systemImage: "square.grid.2x2")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 10)

@@ -14,7 +14,7 @@ struct PreviewControlsView: View {
                     HStack(spacing: 8) {
                         swatch(model.previewBaseColor)
                             .frame(width: 22, height: 22)
-                        Text(model.previewBaseColor?.title ?? "原始效果")
+                        Text(model.previewBaseColor?.title ?? L10n.text("原始效果"))
                             .font(.subheadline.weight(.medium))
                         Image(systemName: "chevron.down").font(.caption2.bold())
                     }
@@ -76,7 +76,7 @@ struct PreviewControlsView: View {
                                 .foregroundStyle(color?.contrastingColor ?? .white)
                         }
                     }
-                Text(color?.title ?? "原始")
+                Text(color?.title ?? L10n.text("原始"))
                     .font(.caption2)
                     .lineLimit(1)
             }
@@ -86,7 +86,7 @@ struct PreviewControlsView: View {
                         in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(color?.title ?? "原始效果")
+        .accessibilityLabel(color?.title ?? L10n.text("原始效果"))
         .accessibilityAddTraits(model.previewBaseColor == color ? .isSelected : [])
         .accessibilityIdentifier("preview.color.\(color?.rawValue ?? "original")")
     }

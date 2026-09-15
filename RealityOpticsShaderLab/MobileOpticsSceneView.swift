@@ -159,9 +159,9 @@ struct MobileOpticsSceneView: UIViewRepresentable {
                 statusElapsed = 0
                 let message: String
                 switch frame.camera.trackingState {
-                case .normal: message = "轻点画面放置模型"
-                case .limited: message = "请缓慢移动手机，正在恢复跟踪…"
-                case .notAvailable: message = "AR 跟踪暂不可用"
+                case .normal: message = L10n.text("轻点画面放置模型")
+                case .limited: message = L10n.text("请缓慢移动手机，正在恢复跟踪…")
+                case .notAvailable: message = L10n.text("AR 跟踪暂不可用")
                 }
                 if preview.message != message { preview.message = message }
             }
@@ -266,14 +266,14 @@ struct MobileOpticsSceneView: UIViewRepresentable {
             Task { @MainActor [weak self] in
                 guard let self, self.ar, self.preview.isAR, self.view?.session === session else { return }
                 self.preview.useVirtual()
-                self.preview.message = "AR 已停止：\(message)"
+                self.preview.message = L10n.format("AR 已停止：%@", message)
             }
         }
         nonisolated func sessionWasInterrupted(_ session: ARSession) {
             Task { @MainActor [weak self] in
                 guard let self, self.ar, self.preview.isAR, self.view?.session === session else { return }
                 self.sessionInterrupted = true
-                self.preview.message = "AR 已暂停，返回应用后恢复"
+                self.preview.message = L10n.text("AR 已暂停，返回应用后恢复")
             }
         }
         nonisolated func sessionInterruptionEnded(_ session: ARSession) {
