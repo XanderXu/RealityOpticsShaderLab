@@ -161,7 +161,7 @@ class Graph:
 
 
 def ui_defaults():
-    source=(ROOT/'RealityOpticsShaderLab/AppModel.swift').read_text()
+    source=(ROOT/'RealityOpticsShaderLab/App/AppModel.swift').read_text()
     defaults={name:float(number) for name,number in re.findall(r'var (\w+): Float = ([\d.]+)', source)}
     count=0
     for body in re.findall(r'SettingSpec\(id:(.*?)\}\)', source, re.S):
@@ -176,7 +176,7 @@ def ui_defaults():
 
 
 def extended_controls(graphs):
-    source = (ROOT/'RealityOpticsShaderLab/ExtendedEffectControls.swift').read_text()
+    source = (ROOT/'RealityOpticsShaderLab/Effects/ExtendedEffectControls.swift').read_text()
     count = 0
     for effect, body in re.findall(r'case \.(\w+): return \[(.*?)\]', source, re.S):
         name = ('ChatoyancyMaterial' if effect in ['catEye','starGem'] else

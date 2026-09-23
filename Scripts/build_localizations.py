@@ -5,8 +5,9 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = (ROOT / 'RealityOpticsShaderLab/OpticsEffect.swift').read_text()
-DEST = ROOT / 'RealityOpticsShaderLab/Localizable.xcstrings'
+APP = ROOT / 'RealityOpticsShaderLab'
+SOURCE = (APP / 'Effects/OpticsEffect.swift').read_text()
+DEST = APP / 'Localization/Localizable.xcstrings'
 
 # id | full title | picker title | visible phenomenon | rendering principle
 EFFECTS = '''
@@ -253,14 +254,15 @@ def main():
         else: add(key, translation, key)
     for key, (en, zh) in TEMPLATES.items(): add(key, zh, en)
     # Dynamic parameter labels bypass SwiftUI's literal-string extraction.
-    for name in ['AppModel.swift', 'ExtendedEffectControls.swift']:
-        source = (ROOT / 'RealityOpticsShaderLab' / name).read_text()
+    for name in ['App/AppModel.swift', 'Effects/ExtendedEffectControls.swift']:
+        source = (APP / name).read_text()
         labels = set(re.findall(r'label: "([^"\n]+)"', source))
         assert labels <= data['strings'].keys(), (name, labels - data['strings'].keys())
-    for name in ['ContentView.swift', 'MobileContentView.swift', 'ParameterPanelView.swift',
-                 'EffectLibraryView.swift', 'PreviewControlsView.swift',
-                 'MobilePreviewState.swift', 'MobileOpticsSceneView.swift']:
-        source = (ROOT / 'RealityOpticsShaderLab' / name).read_text()
+    for name in ['Views/visionOS/ContentView.swift', 'Views/iOS/MobileContentView.swift',
+                 'Views/Shared/ParameterPanelView.swift', 'Views/Shared/EffectLibraryView.swift',
+                 'Views/Shared/PreviewControlsView.swift', 'Preview/iOS/MobilePreviewState.swift',
+                 'Preview/iOS/MobileOpticsSceneView.swift']:
+        source = (APP / name).read_text()
         keys = set(re.findall(r'(?:Text|Label|Button|ProgressView|TextField|Picker|L10n\.text)\("([^"\n]+)"', source))
         keys -= {'3D', 'AR', 'Reality Optics Shader Lab'}
         keys = {key for key in keys if not key.startswith('\\(')}

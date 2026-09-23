@@ -64,3 +64,6 @@ fastlane/test_output
 # Project local build output
 build/
 DerivedData/
+
+# Regenerable simulator audit screenshots and logs
+/artifacts/

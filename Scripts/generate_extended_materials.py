@@ -235,7 +235,7 @@ for e,controls in CONTROLS.items():
  for n,l,lo,hi,d in controls:s+=f'            .init(name: "{n}", label: "{l}", range: {lo}...{hi}, value: {d}),\n'
  s+='        ]\n'
 s+='        default: return []\n        }\n    }\n}\n'
-(ROOT/'RealityOpticsShaderLab/ExtendedEffectControls.swift').write_text(s)
+(ROOT/'RealityOpticsShaderLab/Effects/ExtendedEffectControls.swift').write_text(s)
 from base_color import apply_all as apply_base_colors
 apply_base_colors()
 print(f'Generated 15 graph templates and controls for {len(CONTROLS)} effects')

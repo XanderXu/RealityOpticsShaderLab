@@ -1,7 +1,0 @@
-2026-09-11 23:47:56.110 RealityOpticsShaderLab[35416:19913721] Metal API Validation Enabled
-OPTICS_PERF FIRST_READY sunstone: 1.552225875 seconds
-OPTICS_PERF SELECT sunstone: 1.054967625 seconds; templates=1, textures=0, textureBytes=0
-OPTICS_AUDIT DEFAULT sunstone 6 parameters
-OPTICS_AUDIT MIN sunstone 6 parameters
-OPTICS_AUDIT MAX sunstone 6 parameters
-OPTICS_AUDIT PASS: 1 materials, default/min/max scenes, no binding failures
