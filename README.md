@@ -21,17 +21,19 @@
 
 ### 效果清单
 
-| 分组 | 效果 |
-|---|---|
-| 薄膜与镀膜（7） | 薄膜干涉／肥皂泡、油膜、阳极氧化钛、镜头镀膜、二向色玻璃、牛顿环、蜻蜓翅膀 |
-| 结构色与晕彩（6） | 欧泊、拉长石、闪蝶翅膀、吉丁虫鞘翅、孔雀羽、变色龙皮肤 |
-| 珠光与柔光（3） | 珍珠母、珍珠、月光石 |
-| 定向反光（4） | 猫眼效应、星光宝石、日光石、逆反射材料 |
-| 偏振与体色（5） | 双折射／光弹性、液晶旋光、圆偏振金龟、变石效应、多色性 |
-| 衍射与散斑（3） | 衍射光栅／CD、彩虹全息、激光散斑 |
-| 色散与吸收（2） | 宝石火彩、吸收玻璃 |
-| 视差与叠层（3） | 柱镜变图、彩色莫尔纹、视差星云 |
-| 大气光学（2） | 雨虹与双虹、大气霞光 |
+下表按分组概括共同原理，并逐项描述视觉效果。同组效果不一定使用完全相同的物理机制。
+
+| 分组 | 共同的基本原理 | 效果及视觉表现 |
+|---|---|---|
+| 薄膜与镀膜（7） | 薄层界面的反射光发生干涉；膜厚和视角改变时，被增强的颜色随之变化。 | **薄膜干涉／肥皂泡**：随膜厚变化的彩虹色；**油膜**：水面流纹状彩色；**阳极氧化钛**：氧化层厚度形成鲜明金属色；**镜头镀膜**：微弱的紫绿反光；**二向色玻璃**：反射与透射呈互补色；**牛顿环**：同心彩环；**蜻蜓翅膀**：半透明翅膜上的淡虹彩与深色脉络。 |
+| 结构色与晕彩（6） | 微细结构选择性反射、干涉或衍射不同波长的光，常随视角显色。 | **欧泊**：闪烁的斑块状变彩；**拉长石**：深色石体上成片的蓝金晕彩；**闪蝶翅膀**：鲜明蓝色；**吉丁虫鞘翅**：绿色底色与转动时的彩虹条带；**孔雀羽**：羽枝条纹上的虹彩与闪点；**变色龙皮肤**：晶域色彩逐渐变化。 |
+| 珠光与柔光（3） | 层状反射和散射叠加，形成柔和、低饱和的光泽。 | **珍珠母**：贝壳内壁般的柔和彩光；**珍珠**：圆润珠光及粉白至金色渐变；**月光石**：在乳白石体内漂移的蓝白柔光。 |
+| 定向反光（4） | 定向纤维、片状包裹体或反光结构使亮光集中在特定方向。 | **猫眼效应**：扫过表面的窄亮带；**星光宝石**：六射星光；**日光石**：随光源和视角闪烁的铜金色细点；**逆反射材料**：光源靠近观察方向时突然变亮。 |
+| 偏振与体色（5） | 偏振态、晶体观察方向或照明光谱改变反射、透射和选择性吸收；组内包含不同机制。 | **双折射／光弹性**：彩色应力条纹和暗区；**液晶旋光**：黑场纹理及斜看时的灰紫色；**圆偏振金龟**：两支偏振相关颜色的混合示意；**变石效应**：照明切换时由绿转红紫；**多色性**：沿不同晶轴观看呈现不同体色。 |
+| 衍射与散斑（3） | 光的相位叠加形成图样：周期结构分离颜色，相干光在粗糙表面产生散斑。 | **衍射光栅／CD**：对视角敏感的彩虹反光；**彩虹全息**：随视角水平滑动的彩虹条纹；**激光散斑**：随观察者移动而流动的细密亮暗颗粒。 |
+| 色散与吸收（2） | 材料对不同波长的折射率或吸收率不同。 | **宝石火彩**：切面中的彩色闪光随视角切换；**吸收玻璃**：厚度和观察角度改变透射色。 |
+| 视差与叠层（3） | 图层深度或周期纹理使视点变化转化为图像切换、错位或低频拍纹。 | **柱镜变图**：左右观看切换四幅彩色图案；**彩色莫尔纹**：移动的彩色波纹；**视差星云**：多层彩云与星点错位，显出深度。 |
+| 大气光学（2） | 水滴中的折射与内反射、大气中的散射，使色带依赖光源和观察方向。 | **雨虹与双虹**：反太阳方向出现主虹和色序反转的副虹；**大气霞光**：球体边缘呈蓝色大气光，向日落方向过渡为橙红色。 |
 
 薄膜、光栅和偏振延迟采用光谱模型；生物结构色、宝石柔光等结合程序纹理与外观近似，主要用于观察效果与参数变化。
 
@@ -70,17 +72,19 @@ RealityOpticsShaderLab is a wave-optics and structural-color gallery for visionO
 
 ### Effects
 
-| Group | Effects |
-|---|---|
-| Films and coatings (7) | Thin-film interference / soap bubbles, oil film, anodized titanium, lens coating, dichroic glass, Newton's rings, dragonfly wing |
-| Structural color and iridescence (6) | Opal, labradorite, Morpho wing, beetle shell, iridescent feather, chameleon skin |
-| Pearlescence and soft glow (3) | Nacre, cultured pearl, moonstone |
-| Directional highlights (4) | Cat's eye, star gemstone, sunstone, retroreflective material |
-| Polarization and body color (5) | Birefringence / photoelasticity, LCD twist, polarized scarab, alexandrite color change, pleochroism |
-| Diffraction and speckle (3) | Diffraction grating / CD, rainbow hologram, laser speckle |
-| Dispersion and absorption (2) | Gemstone fire, colored absorbing glass |
-| Parallax and layers (3) | Lenticular images, color moiré, parallax nebula |
-| Atmospheric optics (2) | Primary and secondary rainbows, planetary atmospheric glow |
+The shared principle summarizes each group; individual effects within a group do not necessarily use the same physical mechanism.
+
+| Group | Shared basic principle | Effects and visual appearance |
+|---|---|---|
+| Films and coatings (7) | Reflections from thin-layer interfaces interfere; changing thickness or viewing angle changes the enhanced colors. | **Thin-film interference / soap bubble**: rainbow colors that vary with film thickness; **oil film**: flowing color bands on water; **anodized titanium**: vivid metallic colors set by oxide thickness; **lens coating**: faint purple-green reflections; **dichroic glass**: complementary reflected and transmitted colors; **Newton's rings**: concentric colored rings; **dragonfly wing**: subtle iridescence and dark veins on a translucent membrane. |
+| Structural color and iridescence (6) | Fine structures selectively reflect, interfere with, or diffract wavelengths of light, often producing angle-dependent color. | **Opal**: flickering patches of play-of-color; **labradorite**: broad blue-gold flashes over a dark body; **Morpho wing**: vivid blue; **beetle shell**: green body color with rainbow bands as it turns; **iridescent feather**: color and glitter along feather-barb patterns; **chameleon skin**: gradually changing colors across crystal domains. |
+| Pearlescence and soft glow (3) | Layered reflection and scattering combine into a soft, low-saturation sheen. | **Nacre**: gentle shifting colors like a shell's inner surface; **pearl**: rounded luster with a pink-white to gold gradient; **moonstone**: a drifting blue-white glow within a milky body. |
+| Directional highlights (4) | Aligned fibers, plate-like inclusions, or reflective structures concentrate highlights in particular directions. | **Cat's eye**: a narrow moving light band; **star gemstone**: a six-rayed star; **sunstone**: copper-gold flecks that flash with the light and viewing angle; **retroreflective material**: a sudden bright return when the light is near the viewing direction. |
+| Polarization and body color (5) | Polarization, crystal viewing direction, or illumination spectrum changes reflection, transmission, and selective absorption; this group contains distinct mechanisms. | **Birefringence / photoelasticity**: colored stress bands and dark regions; **LCD twist**: dark-field texture and gray-purple color at oblique angles; **polarized scarab**: an illustrative blend of two polarization-related color branches; **alexandrite color change**: green turning red-purple when illumination changes; **pleochroism**: different body colors along different crystal axes. |
+| Diffraction and speckle (3) | Phase relationships create patterns: periodic structures separate colors, while coherent light on a rough surface produces speckle. | **Diffraction grating / CD**: angle-sensitive rainbow reflections; **rainbow hologram**: rainbow bands that slide horizontally with the viewpoint; **laser speckle**: fine bright and dark grains that flow as the viewer moves. |
+| Dispersion and absorption (2) | A material's refractive index or absorption varies with wavelength. | **Gemstone fire**: colored flashes in facets that switch with viewing angle; **absorbing glass**: transmitted color changes with thickness and viewing angle. |
+| Parallax and layers (3) | Layer depth or periodic patterns turn viewpoint changes into image switching, displacement, or low-frequency beats. | **Lenticular images**: four colored images switch as the viewer moves left or right; **color moiré**: moving colored waves; **parallax nebula**: layered clouds and stars shift to reveal depth. |
+| Atmospheric optics (2) | Refraction and internal reflection in droplets, or scattering in an atmosphere, create color bands tied to the light and viewing directions. | **Primary and secondary rainbows**: a primary bow and a fainter bow with reversed color order opposite the light source; **planetary atmospheric glow**: a blue planetary limb grading into sunset orange-red. |
 
 Film, grating and polarization-delay effects use spectral models. Biological structural colors and gemstone glows combine procedural textures with visual approximations so their response to parameters and viewpoint remains easy to inspect.
 
