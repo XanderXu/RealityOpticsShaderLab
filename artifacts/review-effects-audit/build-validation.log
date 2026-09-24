@@ -1,8 +1,0 @@
-Debug / Release BUILD SUCCEEDED
-41 CPU tests passed
-24 graphs / 984 nodes / 107 defaults passed official MaterialX signatures and regression probes
-13 full-size GPU LUT cases + padded 257x129 passed
-Single-LUT T vs independent integration: max 0.00050115585, RMSE 0.00015718016
-28 effects visible MIN/MAX passed, 31 screenshots; final sunstone independently passed
-28 effects / 2 groups / 9 colors / 3 amounts passed preview binding audit
-22 templates / 13 LUTs / 6561792 texture bytes after IOR stress; 280 warm requests without rebuild

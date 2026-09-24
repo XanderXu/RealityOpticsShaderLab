@@ -67,3 +67,6 @@ DerivedData/
 
 # macOS Finder metadata
 .DS_Store
+
+# Regenerable simulator audit screenshots and logs
+/artifacts/

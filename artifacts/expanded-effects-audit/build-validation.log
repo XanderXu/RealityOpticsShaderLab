@@ -1,8 +1,0 @@
-Debug: BUILD SUCCEEDED (visionOS Simulator 26.5)
-Release: BUILD SUCCEEDED (visionOS Simulator 26.5)
-39 CPU tests passed
-24 material files / 951 nodes / 106 parameter defaults passed with official MaterialX stdlib signatures
-13 full-resolution LUTs + 257x129 padded edge case passed GPU/CPU parity
-28 effects default/min/max passed; catEye/starGem/labradorite visual refinements separately revalidated
-28 effects / 2 groups / 9 base colors / 3 amounts passed preview audit
-22 runtime templates, 14 cached LUTs after IOR stress, 280 warm requests without rebuild

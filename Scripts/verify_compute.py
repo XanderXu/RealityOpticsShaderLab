@@ -10,4 +10,4 @@ with tempfile.TemporaryDirectory(prefix='optics-compute-') as temporary:
     sources = sorted((root / 'Packages/OpticsPhysics/Sources/OpticsPhysics').glob('*.swift'))
     subprocess.run(['xcrun', 'swiftc', '-O', '-parse-as-library', *map(str, sources),
                     str(root / 'Scripts/verify_compute.swift'), '-o', str(executable)], check=True)
-    subprocess.run([str(executable), str(root / 'RealityOpticsShaderLab/OpticsLUT.metal')], check=True)
+    subprocess.run([str(executable), str(root / 'RealityOpticsShaderLab/Rendering/OpticsLUT.metal')], check=True)

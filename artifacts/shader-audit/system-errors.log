@@ -1,6 +1,0 @@
-Timestamp               Ty Process[PID:TID]
-2026-09-11 20:58:40.079 E  RealityOpticsShaderLab[9183:12bbff8] [com.apple.CFBundle:plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x10468ab20> F8BB1C28-BAE8-11D6-9C31-00039315CD46
-2026-09-11 20:58:40.507 E  RealityOpticsShaderLab[9183:12bbff6] [com.apple.network:connection] nw_socket_copy_info [C1:2] getsockopt TCP_INFO failed [102: Operation not supported on socket]
-2026-09-11 20:58:40.507 E  RealityOpticsShaderLab[9183:12bbff6] [com.apple.network:] nw_socket_copy_info getsockopt TCP_INFO failed [102: Operation not supported on socket]
-2026-09-11 20:59:10.033 E  RealityOpticsShaderLab[9183:12bbff7] [com.apple.usdlib:tbbmain] TBB Global TLS count is not == 1, instead it is: 2
-2026-09-11 20:59:10.339 E  RealityOpticsShaderLab[9183:12bbfd2] [com.apple.re:Foundation.IO] Could not locate file 'default-binaryarchive.metallib' in bundle.
